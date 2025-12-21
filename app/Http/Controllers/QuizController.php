@@ -15,8 +15,33 @@ class QuizController extends Controller
     {
         $user = Auth::user();
         $currentTest = Test::latest()->first();
+        $isReady = false;
+        $readyCount = 0;
         
-        return view('quiz.dashboard', compact('user', 'currentTest'));
+        if ($currentTest && $currentTest->status === 'waiting') {
+            $isReady = $currentTest->isUserReady($user->id);
+            $readyCount = $currentTest->getReadyParticipantsCount();
+        }
+        
+        return view('quiz.dashboard', compact('user', 'currentTest', 'isReady', 'readyCount'));
+    }
+
+    public function markAsReady(Request $request)
+    {
+        $user = Auth::user();
+        $currentTest = Test::where('status', 'waiting')->latest()->first();
+        
+        if (!$currentTest) {
+            return response()->json(['error' => 'No test available'], 400);
+        }
+        
+        $currentTest->addReadyParticipant($user->id);
+        
+        return response()->json([
+            'success' => true, 
+            'message' => 'You are now ready to participate!',
+            'readyCount' => $currentTest->getReadyParticipantsCount()
+        ]);
     }
 
     public function showQuiz()
@@ -24,9 +49,23 @@ class QuizController extends Controller
         $user = Auth::user();
         $currentTest = Test::where('status', 'active')->latest()->first();
         
-        if (!$currentTest || !$currentTest->currentQuestion) {
-            return redirect()->route('dashboard')->with('error', 'No active question found. Please wait for the next question.');
-        }
+      if (!$currentTest) {
+    return redirect()->route('dashboard')
+        ->with('error', 'No active test found. Please wait for the test to start.');
+}
+
+// Check if user is a ready participant
+if (!$currentTest->isUserReady($user->id)) {
+    return redirect()->route('dashboard')
+        ->with('error', 'You must click "I\'m Ready" first to participate in the test.');
+}
+
+// Check if there is a current question
+if (!$currentTest->currentQuestion) {
+    return redirect()->route('dashboard')
+        ->with('warning', 'Test is active but no question is currently running. Please wait for the next question.');
+}
+
 
         $question = $currentTest->currentQuestion;
         $timeRemaining = $currentTest->getTimeRemaining();

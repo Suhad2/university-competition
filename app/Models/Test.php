@@ -12,6 +12,7 @@ class Test extends Model
         'started_at',
         'ended_at',
         'question_start_time',
+        'ready_participants',
     ];
 
     // Relationships
@@ -54,5 +55,41 @@ class Test extends Model
 
         $elapsed = time() - $this->question_start_time;
         return max(0, 30 - $elapsed); // 30 seconds per question
+    }
+
+    // Participant management methods
+    public function getReadyParticipants()
+    {
+        return $this->ready_participants ? json_decode($this->ready_participants, true) : [];
+    }
+
+    public function isUserReady($userId)
+    {
+        $readyParticipants = $this->getReadyParticipants();
+        return in_array($userId, $readyParticipants);
+    }
+
+    public function addReadyParticipant($userId)
+    {
+        $readyParticipants = $this->getReadyParticipants();
+        if (!in_array($userId, $readyParticipants)) {
+            $readyParticipants[] = $userId;
+            $this->update(['ready_participants' => json_encode($readyParticipants)]);
+        }
+    }
+
+    public function getReadyParticipantsCount()
+    {
+        return count($this->getReadyParticipants());
+    }
+
+    public function isWaitingForParticipants()
+    {
+        return $this->status === 'waiting' && $this->isWaiting();
+    }
+
+    public function isAwaitingFirstQuestion()
+    {
+        return $this->status === 'waiting' && $this->current_question_id === null;
     }
 }

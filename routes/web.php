@@ -23,6 +23,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/quiz', [QuizController::class, 'showQuiz'])->name('quiz');
     Route::post('/quiz/answer', [QuizController::class, 'submitAnswer'])->name('quiz.answer');
     Route::get('/quiz/waiting', [QuizController::class, 'showWaiting'])->name('quiz.waiting');
+    Route::post('/quiz/mark-ready', [QuizController::class, 'markAsReady'])->name('quiz.mark-ready');
     
     // Real-time scoreboard
     Route::get('/scoreboard', [ScoreboardController::class, 'showScoreboard'])->name('scoreboard');
@@ -44,6 +45,7 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:exam_manager'])->group(function () {
         Route::get('/exam-manager', [ExamManagerController::class, 'index'])->name('exam-manager.dashboard');
         Route::post('/exam-manager/start-test', [ExamManagerController::class, 'startTest'])->name('exam-manager.start-test');
+        Route::post('/exam-manager/start-first-question', [ExamManagerController::class, 'startFirstQuestion'])->name('exam-manager.start-first-question');
         Route::post('/exam-manager/next-question', [ExamManagerController::class, 'nextQuestion'])->name('exam-manager.next-question');
         Route::post('/exam-manager/end-test', [ExamManagerController::class, 'endTest'])->name('exam-manager.end-test');
         Route::get('/exam-manager/users-status', [ExamManagerController::class, 'showUsersStatus'])->name('exam-manager.users-status');

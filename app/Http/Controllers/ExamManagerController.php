@@ -19,16 +19,20 @@ class ExamManagerController extends Controller
         
         $stats = [
             'waiting_users' => 0,
+            'ready_participants' => 0,
             'answered_questions' => 0,
             'total_questions' => $totalQuestions,
         ];
 
         if ($currentTest) {
-            if ($currentTest->isActive() && $currentTest->currentQuestion) {
+            if ($currentTest->currentQuestion) {
                 $answeredCount = \App\Models\Answer::where('test_id', $currentTest->id)
                     ->where('question_id', $currentTest->current_question_id)
                     ->count();
                 $stats['answered_questions'] = $answeredCount;
+            }
+            if ($currentTest->status === 'waiting') {
+                $stats['ready_participants'] = $currentTest->getReadyParticipantsCount();
             }
         }
 
@@ -48,6 +52,44 @@ class ExamManagerController extends Controller
         ]);
 
         return redirect()->route('exam-manager.dashboard')->with('success', 'Test started! Waiting for participants...');
+    }
+
+    public function startFirstQuestion(Request $request)
+    {
+        $currentTest = Test::where('status', 'waiting')->latest()->first();
+        
+        if (!$currentTest) {
+            return redirect()->route('exam-manager.dashboard')->with('error', 'No test found! Please start a test first.');
+        }
+
+        $readyCount = $currentTest->getReadyParticipantsCount();
+        if ($readyCount === 0) {
+            return redirect()->route('exam-manager.dashboard')->with('error', 'No participants are ready! Wait for students to click "I\'m Ready" first.');
+        }
+
+        // Get a random question that hasn't been used in this test
+        $usedQuestionIds = \App\Models\Answer::where('test_id', $currentTest->id)
+            ->pluck('question_id')
+            ->toArray();
+
+        $question = Question::whereNotIn('id', $usedQuestionIds)->inRandomOrder()->first();
+
+        if (!$question) {
+            return redirect()->route('exam-manager.dashboard')->with('error', 'No questions available!');
+        }
+
+        // Update test with new question and set to active
+        $currentTest->update([
+            'current_question_id' => $question->id,
+            'question_start_time' => time(),
+            'status' => 'active',
+            'started_at' => now(),
+        ]);
+
+        // Broadcast question start event
+        event(new QuestionStarted($question, $currentTest));
+
+        return redirect()->route('exam-manager.dashboard')->with('success', "First question sent to {$readyCount} ready participants!");
     }
 
     public function nextQuestion(Request $request)
@@ -83,7 +125,7 @@ class ExamManagerController extends Controller
 
     public function endTest(Request $request)
     {
-        $currentTest = Test::where('status', 'active')->latest()->first();
+        $currentTest = Test::whereIn('status', ['waiting', 'active'])->latest()->first();
         
         if ($currentTest) {
             $currentTest->update([
@@ -115,12 +157,12 @@ class ExamManagerController extends Controller
             return redirect()->route('exam-manager.dashboard')->with('success', 'Test ended successfully!');
         }
 
-        return redirect()->route('exam-manager.dashboard')->with('error', 'No active test found!');
+        return redirect()->route('exam-manager.dashboard')->with('error', 'No test found! Please start a test first.');
     }
 
     public function showUsersStatus()
     {
-        $currentTest = Test::where('status', 'active')->latest()->first();
+        $currentTest = Test::whereIn('status', ['waiting', 'active'])->latest()->first();
         $users = User::where('role', 'user')->get();
         
         $userStatus = [];

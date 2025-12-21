@@ -40,20 +40,17 @@
                         </div>
                         <div class="col-md-3">
                             <div class="stat-card">
-                                <h6>Participants</h6>
+                                <h6>Total Users</h6>
                                 <h4>{{ $stats['waiting_users'] }}</h4>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="stat-card">
-                                <h6>Current Question</h6>
-                                @if($currentTest->currentQuestion)
-                                    <h4>#{{ $currentTest->currentQuestion->id }}</h4>
-                                @else
-                                    <h4 class="text-muted">None</h4>
-                                @endif
+                                <h6>Ready Participants</h6>
+                                <h4>{{ $stats['ready_participants'] }}</h4>
                             </div>
                         </div>
+
                     </div>
                 @else
                     <div class="text-center">
@@ -76,7 +73,7 @@
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         @if(!$currentTest || $currentTest->isEnded())
                         <form method="POST" action="{{ route('exam-manager.start-test') }}">
                             @csrf
@@ -90,8 +87,16 @@
                         </button>
                         @endif
                     </div>
-                    <div class="col-md-4">
-                        @if($currentTest && $currentTest->isActive())
+                    <div class="col-md-3">
+                        @if($currentTest && $currentTest->isWaiting() && !$currentTest->currentQuestion)
+                        <form method="POST" action="{{ route('exam-manager.start-first-question') }}">
+                            @csrf
+                            <button type="submit" class="btn btn-info btn-lg w-100" 
+                                    onclick="return confirm('Start the first question for {{ $stats['ready_participants'] }} ready participants?')">
+                                <i class="fas fa-rocket"></i> Start First Question
+                            </button>
+                        </form>
+                        @elseif($currentTest && $currentTest->isActive())
                         <form method="POST" action="{{ route('exam-manager.next-question') }}">
                             @csrf
                             <button type="submit" class="btn btn-primary btn-lg w-100">
@@ -104,7 +109,7 @@
                         </button>
                         @endif
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         @if($currentTest && ($currentTest->isWaiting() || $currentTest->isActive()))
                         <form method="POST" action="{{ route('exam-manager.end-test') }}" 
                               onsubmit="return confirm('Are you sure you want to end the test? This action cannot be undone.')">
