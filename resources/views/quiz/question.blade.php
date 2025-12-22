@@ -91,12 +91,43 @@
 
 @section('scripts')
 <script>
-let timeRemaining = {{ $timeRemaining }};
+let timeRemaining = 30;
 let timerInterval;
 let hasAnswered = document.getElementById('hasAnswered').value === 'true';
 
+// Initialize timer based on server time
+function initializeTimer() {
+    const startTime = parseInt(document.getElementById('startTime').value);
+    const timeLimit = parseInt(document.getElementById('timeLimit').value);
+    const currentTime = Math.floor(Date.now() / 1000);
+    
+    // Calculate actual remaining time from server timestamp
+    const elapsed = currentTime - startTime;
+    const calculatedRemaining = timeLimit - elapsed;
+    
+    // Use the calculated remaining time, but ensure it's valid
+    if (calculatedRemaining > 0 && calculatedRemaining <= timeLimit) {
+        timeRemaining = calculatedRemaining;
+    } else if (calculatedRemaining <= 0) {
+        timeRemaining = 0;
+    } else {
+        // If calculation seems wrong, use the server value
+        timeRemaining = parseInt(document.getElementById('timeLimit').value);
+    }
+    
+    // Ensure timeRemaining doesn't exceed the limit
+    if (timeRemaining > timeLimit) {
+        timeRemaining = timeLimit;
+    }
+    
+    // Update the display immediately
+    const timerElement = document.getElementById('timer');
+    timerElement.textContent = timeRemaining + 's';
+}
+
 // Initialize timer
 function startTimer() {
+    initializeTimer();
     updateTimer();
     timerInterval = setInterval(updateTimer, 1000);
 }
@@ -205,7 +236,12 @@ function checkQuestionStatus() {
         return;
     }
     
-    timeRemaining = remaining;
+    // Update timeRemaining to match server time
+    if (remaining !== timeRemaining && remaining >= 0 && remaining <= timeLimit) {
+        timeRemaining = remaining;
+        const timerElement = document.getElementById('timer');
+        timerElement.textContent = timeRemaining + 's';
+    }
 }
 
 // Initialize
@@ -213,13 +249,8 @@ document.addEventListener('DOMContentLoaded', function() {
     startTimer();
     enableAnswers();
     
-    // Check status every 5 seconds
+    // Check status every 5 seconds to sync with server
     setInterval(checkQuestionStatus, 5000);
 });
 </script>
-@endsection
-
-@push('scripts')
-<meta name="csrf-token" content="{{ csrf_token() }}">
-@endpush
 @endsection

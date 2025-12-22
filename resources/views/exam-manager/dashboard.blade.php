@@ -175,14 +175,26 @@
 @endif
 
 <!-- Participants Status -->
-@if($currentTest && $currentTest->isActive())
+@if($currentTest && ($currentTest->isActive() || $currentTest->isWaiting()))
 <div class="row">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h5><i class="fas fa-users"></i> Participants Status</h5>
+                <h5><i class="fas fa-users"></i> 
+                    @if($currentTest->isWaiting())
+                        Ready Participants ({{ $stats['ready_participants'] }})
+                    @else
+                        Participants Status
+                    @endif
+                </h5>
             </div>
             <div class="card-body">
+                @if($stats['ready_participants'] == 0)
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        No participants are ready yet. Wait for students to click "I'm Ready".
+                    </div>
+                @else
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
@@ -194,47 +206,56 @@
                             </tr>
                         </thead>
                         <tbody id="participantsTable">
+                            @php
+                            $readyParticipants = $currentTest->getReadyParticipants();
+                            @endphp
                             @foreach($users as $user)
-                            <tr>
-                                <td>{{ $user->name }}</td>
-                                <td>{{ $user->university ?? 'N/A' }}</td>
-                                <td>
-                                    @php
-                                        $hasAnswered = \App\Models\Answer::where('test_id', $currentTest->id)
-                                            ->where('user_id', $user->id)
-                                            ->where('question_id', $currentTest->current_question_id ?? 0)
-                                            ->exists();
-                                    @endphp
-                                    @if($hasAnswered)
-                                        <span class="badge bg-success">Answered</span>
-                                    @else
-                                        <span class="badge bg-warning">Waiting</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($hasAnswered)
+                                @if(in_array($user->id, $readyParticipants))
+                                <tr>
+                                    <td>{{ $user->name }}</td>
+                                    <td>{{ $user->university ?? 'N/A' }}</td>
+                                    <td>
                                         @php
-                                            $answer = \App\Models\Answer::where('test_id', $currentTest->id)
+                                            $hasAnswered = \App\Models\Answer::where('test_id', $currentTest->id)
                                                 ->where('user_id', $user->id)
                                                 ->where('question_id', $currentTest->current_question_id ?? 0)
-                                                ->first();
+                                                ->exists();
                                         @endphp
-                                        {{ $answer->selected_answer ?? 'N/A' }}
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
-                                </td>
-                            </tr>
+                                        @if($hasAnswered)
+                                            <span class="badge bg-success">Answered</span>
+                                        @else
+                                            @if($currentTest->isWaiting())
+                                                <span class="badge bg-info">Ready</span>
+                                            @else
+                                                <span class="badge bg-warning">Waiting</span>
+                                            @endif
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($hasAnswered)
+                                            @php
+                                                $answer = \App\Models\Answer::where('test_id', $currentTest->id)
+                                                    ->where('user_id', $user->id)
+                                                    ->where('question_id', $currentTest->current_question_id ?? 0)
+                                                    ->first();
+                                            @endphp
+                                            {{ $answer->selected_answer ?? 'N/A' }}
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                @endif
                             @endforeach
                         </tbody>
                     </table>
                 </div>
+                @endif
             </div>
         </div>
     </div>
 </div>
 @endif
-
 <style>
 .stat-card {
     text-align: center;

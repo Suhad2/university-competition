@@ -24,16 +24,15 @@ class ExamManagerController extends Controller
             'total_questions' => $totalQuestions,
         ];
 
-        if ($currentTest) {
+         if ($currentTest) {
             if ($currentTest->currentQuestion) {
                 $answeredCount = \App\Models\Answer::where('test_id', $currentTest->id)
                     ->where('question_id', $currentTest->current_question_id)
                     ->count();
                 $stats['answered_questions'] = $answeredCount;
             }
-            if ($currentTest->status === 'waiting') {
-                $stats['ready_participants'] = $currentTest->getReadyParticipantsCount();
-            }
+            // Always show ready participants count if there are any
+            $stats['ready_participants'] = $currentTest->getReadyParticipantsCount();
         }
 
         $stats['waiting_users'] = $users->count();
