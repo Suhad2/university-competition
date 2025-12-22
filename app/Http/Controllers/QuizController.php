@@ -149,4 +149,50 @@ class QuizController extends Controller
 
         return view('quiz.waiting', compact('user', 'currentTest'));
     }
+
+    /**
+     * Get real-time status for polling fallback
+     */
+    public function getRealtimeStatus()
+    {
+        $user = Auth::user();
+        $currentTest = Test::latest()->first();
+
+        $status = [
+            'test_active' => false,
+            'has_question' => false,
+            'question_data' => null,
+            'current_question_id' => null,
+            'redirect_url' => null,
+        ];
+
+        if ($currentTest) {
+            // Check if test is active and user is ready
+            if ($currentTest->status === 'active' && $currentTest->isUserReady($user->id)) {
+                $status['test_active'] = true;
+                
+                if ($currentTest->currentQuestion) {
+                    $status['has_question'] = true;
+                    $status['current_question_id'] = $currentTest->currentQuestion->id;
+                    $status['question_data'] = [
+                        'id' => $currentTest->currentQuestion->id,
+                        'title' => $currentTest->currentQuestion->title,
+                        'option_a' => $currentTest->currentQuestion->option_a,
+                        'option_b' => $currentTest->currentQuestion->option_b,
+                        'option_c' => $currentTest->currentQuestion->option_c,
+                        'option_d' => $currentTest->currentQuestion->option_d,
+                        'question_start_time' => $currentTest->question_start_time,
+                    ];
+                }
+            }
+            
+            // Also return current question ID even if test is in waiting status
+            // This helps detect when a new question is about to start
+            if ($currentTest->currentQuestion) {
+                $status['current_question_id'] = $currentTest->currentQuestion->id;
+            }
+        }
+
+        return response()->json($status);
+    }
 }

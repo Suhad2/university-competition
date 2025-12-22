@@ -10,7 +10,7 @@
 <div class="row justify-content-center">
     <div class="col-md-8 col-lg-6">
         <!-- Waiting State Container -->
-        <div id="waiting-container" class="card shadow {{ $currentTest && $currentTest->isActive() && $currentTest->isUserReady($user->id) ? 'd-none' : '' }}">
+        <div id="waiting-container" class="card shadow {{ $currentTest && $currentTest->isActive() && $currentTest->isUserReady($user->id) && !$existingAnswer ? '' : ($currentTest && $currentTest->isActive() && $currentTest->isUserReady($user->id) && $existingAnswer ? 'd-none' : '') }}">
             <div class="card-header bg-info text-white text-center">
                 <h4><i class="fas fa-graduation-cap"></i> Welcome to University Competition</h4>
             </div>
@@ -32,15 +32,15 @@
                         </ul>
                     </div>
                 </div>
-                @elseif($currentTest && $currentTest->isActive())
-                <div class="mb-4">
+                @elseif($currentTest && $currentTest->isActive() && $currentTest->isUserReady($user->id))
+                {{-- <div class="mb-4">
                     <i class="fas fa-exclamation-circle fa-3x text-primary mb-3"></i>
                     <h3>Test is in Progress!</h3>
                     <p class="lead">The exam has started. Please wait for the next question.</p>
                     <div class="spinner-border text-primary mt-3" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
-                </div>
+                </div> --}}
                 @else
                 <div class="mb-4">
                     <i class="fas fa-clock fa-3x text-muted mb-3"></i>
@@ -120,8 +120,23 @@
             </div>
         </div>
 
+        <!-- Waiting for Next Question (shown after submitting answer) -->
+        <div id="waiting-for-next-container" class="card shadow d-none">
+            <div class="card-header bg-success text-white text-center">
+                <h4><i class="fas fa-check-circle"></i> Answer Submitted!</h4>
+            </div>
+            <div class="card-body text-center">
+                <i class="fas fa-hourglass-half fa-4x text-success mb-4"></i>
+                <h3>You submitted your answer successfully</h3>
+                <p class="lead">Wait for the next question...</p>
+                {{-- <div class="spinner-border text-success mt-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div> --}}
+            </div>
+        </div>
+
         <!-- Question Container (Shows when test is active and user is ready) -->
-        <div id="question-container" class="{{ $currentTest && $currentTest->isActive() && $currentTest->isUserReady($user->id) ? '' : 'd-none' }}">
+        <div id="question-container" class="{{ $currentTest && $currentTest->isActive() && $currentTest->isUserReady($user->id) && !$existingAnswer ? '' : 'd-none' }}">
             <div class="card question-card">
                 <div class="card-header bg-primary text-white">
                     <div class="d-flex justify-content-between align-items-center">
@@ -180,19 +195,11 @@
                         <div id="statusMessage"></div>
                     </div>
 
-                    @if($existingAnswer)
-                    <div class="mt-3">
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i>
-                            You have already answered this question: <strong>{{ $existingAnswer->selected_answer }}</strong>
-                            @if($existingAnswer->is_correct)
-                                <span class="badge bg-success ms-2">Correct!</span>
-                            @else
-                                <span class="badge bg-danger ms-2">Incorrect</span>
-                            @endif
-                        </div>
+                    <div class="text-center mt-4">
+                        <button type="button" id="submitAnswerBtn" class="btn btn-success btn-lg" onclick="submitAnswer()">
+                            <i class="fas fa-check"></i> Submit Answer
+                        </button>
                     </div>
-                    @endif
                 </div>
             </div>
 
@@ -201,6 +208,7 @@
             <input type="hidden" id="startTime" value="{{ $currentTest ? $currentTest->question_start_time : '' }}">
             <input type="hidden" id="timeLimit" value="35">
             <input type="hidden" id="hasAnswered" value="{{ $existingAnswer ? 'true' : 'false' }}">
+            <input type="hidden" id="currentQuestionId" value="{{ $question ? $question->id : '' }}">
         </div>
     </div>
 </div>
@@ -209,6 +217,8 @@
 let timeRemaining = 35;
 let timerInterval = null;
 let hasAnswered = {{ $existingAnswer ? 'true' : 'false' }};
+let selectedAnswer = null;
+let currentPollingInterval = null;
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -217,20 +227,95 @@ document.addEventListener('DOMContentLoaded', function() {
         // Start 1-second refresh to check for new questions
         startPolling();
     @elseif($currentTest && $currentTest->isActive() && $currentTest->isUserReady($user->id))
-        // Question is already active, initialize the timer
-        initializeTimer();
-        if (hasAnswered) {
-            disableAnswers();
-        }
+        @if($existingAnswer)
+            // User already answered, show waiting for next question
+            showWaitingForNext();
+            // Start polling to detect next question
+            startPollingForNextQuestion();
+        @else
+            // Question is active, initialize the timer
+            initializeTimer();
+        @endif
     @endif
 });
 
-// Start polling with 1-second refresh
+// Start polling with 1-second refresh (during waiting phase)
 function startPolling() {
     console.log('Starting 1-second refresh polling...');
-    setInterval(function() {
+    currentPollingInterval = setInterval(function() {
         location.reload();
     }, 1000); // Refresh every 1 second
+}
+
+// Start polling to detect next question (after submitting answer)
+// Poll for next question
+function startPollingForNextQuestion() {
+    console.log('Starting to poll for next question...');
+    const currentQuestionId = document.getElementById('questionId').value;
+    
+    setInterval(async function() {
+        try {
+            const response = await fetch('/quiz/realtime-status');
+            const data = await response.json();
+            
+            // Check if there's a new question by comparing question IDs
+            if (data.current_question_id && data.current_question_id != currentQuestionId) {
+                console.log('New question detected! Reloading...');
+                location.reload();
+            }
+            
+            // Also check if test is now active with a new question
+            if (data.has_question && data.question_data && data.question_data.id != currentQuestionId) {
+                console.log('New question (active) detected! Reloading...');
+                location.reload();
+            }
+        } catch (error) {
+            console.error('Error polling for next question:', error);
+        }
+    }, 1000); // Check every 1 second
+}
+// Check if there's a new question
+function checkForNewQuestion() {
+    fetch('/quiz/realtime-status', {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Realtime status:', data);
+        
+        // Check if exam ended
+        if (data.exam_ended) {
+            clearInterval(currentPollingInterval);
+            window.location.reload();
+            return;
+        }
+        
+        // Check if there's a new question
+        if (data.has_question && data.question_data) {
+            const newQuestionId = data.question_data.id;
+            const currentQuestionId = parseInt(document.getElementById('currentQuestionId').value);
+            
+            if (newQuestionId !== currentQuestionId) {
+                // New question detected!
+                clearInterval(currentPollingInterval);
+                location.reload();
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error checking for new question:', error);
+    });
+}
+
+// Show waiting for next question message
+function showWaitingForNext() {
+    document.getElementById('waiting-container').classList.add('d-none');
+    document.getElementById('question-container').classList.add('d-none');
+    document.getElementById('waiting-for-next-container').classList.remove('d-none');
 }
 
 // Initialize timer based on server time
@@ -292,6 +377,7 @@ function disableAnswers() {
         option.style.pointerEvents = 'none';
         option.classList.add('disabled');
     });
+    document.getElementById('submitAnswerBtn').style.display = 'none';
     hasAnswered = true;
     document.getElementById('hasAnswered').value = 'true';
 }
@@ -343,21 +429,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Add selection to clicked option
             this.classList.add('selected');
-
-            // Submit answer
-            const selectedAnswer = this.dataset.answer;
-            submitAnswer(selectedAnswer);
+            
+            // Store selected answer
+            selectedAnswer = this.dataset.answer;
         });
     });
 });
 
 // Submit answer function
-function submitAnswer(answer) {
+function submitAnswer() {
+    if (!selectedAnswer) {
+        showStatus('Please select an answer first!', 'warning');
+        return;
+    }
+
     const questionId = document.getElementById('questionId').value;
     const testId = document.getElementById('testId').value;
 
     const formData = new FormData();
-    formData.append('selected_answer', answer);
+    formData.append('selected_answer', selectedAnswer);
     formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
 
     fetch('/quiz/answer', {
@@ -367,9 +457,15 @@ function submitAnswer(answer) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showStatus('Answer submitted successfully!', 'success');
-            hasAnswered = true;
-            document.getElementById('hasAnswered').value = 'true';
+            // Disable answers and hide submit button
+            disableAnswers();
+            
+            // Hide question container and show waiting for next
+            document.getElementById('question-container').classList.add('d-none');
+            document.getElementById('waiting-for-next-container').classList.remove('d-none');
+            
+            // Start polling for next question
+            startPollingForNextQuestion();
         } else {
             showStatus(data.error || 'Error submitting answer', 'error');
         }
@@ -383,7 +479,8 @@ function submitAnswer(answer) {
 // Show status message
 function showStatus(message, type) {
     const statusElement = document.getElementById('statusMessage');
-    statusElement.innerHTML = `<div class="alert alert-${type === 'success' ? 'success' : 'danger'}">${message}</div>`;
+    const alertClass = type === 'warning' ? 'warning' : (type === 'success' ? 'success' : 'danger');
+    statusElement.innerHTML = `<div class="alert alert-${alertClass}">${message}</div>`;
 }
 </script>
 @endsection
