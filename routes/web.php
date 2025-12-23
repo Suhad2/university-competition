@@ -23,6 +23,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/quiz', [QuizController::class, 'showQuiz'])->name('quiz');
     Route::post('/quiz/answer', [QuizController::class, 'submitAnswer'])->name('quiz.answer');
     Route::get('/quiz/waiting', [QuizController::class, 'showWaiting'])->name('quiz.waiting');
+    Route::get('/quiz/realtime-status', [QuizController::class, 'getRealtimeStatus'])->name('quiz.realtime-status');
     Route::post('/quiz/mark-ready', [QuizController::class, 'markAsReady'])->name('quiz.mark-ready');
     
     // Real-time scoreboard
@@ -51,4 +52,3 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/exam-manager/users-status', [ExamManagerController::class, 'showUsersStatus'])->name('exam-manager.users-status');
     });
 });
-
