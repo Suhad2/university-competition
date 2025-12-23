@@ -245,9 +245,49 @@
                     // Question is active, initialize the timer
                     initializeTimer();
                 @endif
+            @else
+                // No active test or user not ready - start polling to detect when test becomes available
+                startPollingForTestAvailability();
             @endif
         });
+        // Poll for test availability (when no test exists or test is not in waiting status)
+        // This enables real-time updates when exam manager starts a test
+        function startPollingForTestAvailability() {
+            console.log('Starting polling for test availability...');
 
+            currentPollingInterval = setInterval(async function() {
+                try {
+                    const response = await fetch('/quiz/realtime-status');
+                    const data = await response.json();
+
+                    console.log('Test availability check:', data);
+
+                    // Check if test is now in waiting status (Test is Ready! screen)
+                    if (data.test_waiting) {
+                        console.log('Test is now waiting, reloading page to show Test is Ready! screen...');
+                        location.reload();
+                        return;
+                    }
+
+                    // Check if test is active with a question
+                    if (data.test_active && data.has_question) {
+                        console.log('Test is active with question, reloading page...');
+                        location.reload();
+                        return;
+                    }
+
+                    // Also check if exam ended (to update UI accordingly)
+                    if (data.exam_ended) {
+                        console.log('Exam ended detected, reloading page...');
+                        location.reload();
+                        return;
+                    }
+
+                } catch (error) {
+                    console.error('Error polling for test availability:', error);
+                }
+            }, 1000); // Poll every 1 second
+        }
         // Start polling with 1-second refresh (during waiting phase)
         function startPolling() {
             console.log('Starting 1-second refresh polling...');
@@ -419,7 +459,11 @@
                 .then(data => {
                     console.log('Response data:', data);
                     if (data.success) {
-                        alert(data.message);
+                        // Stop the test availability polling since we're now marked as ready
+                        if (currentPollingInterval) {
+                            clearInterval(currentPollingInterval);
+                        }
+                        // Reload to start the waiting phase polling
                         location.reload();
                     } else {
                         alert(data.error || 'Something went wrong. Please try again.');
@@ -430,7 +474,6 @@
                     alert('Something went wrong. Please try again.');
                 });
         }
-
         // Answer selection click handlers
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.answer-option').forEach(option => {

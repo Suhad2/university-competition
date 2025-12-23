@@ -150,7 +150,7 @@ class QuizController extends Controller
         return view('quiz.waiting', compact('user', 'currentTest'));
     }
 
-       /**
+        /**
      * Get real-time status for polling fallback
      */
     public function getRealtimeStatus()
@@ -159,7 +159,9 @@ class QuizController extends Controller
         $currentTest = Test::latest()->first();
 
         $status = [
+            'test_waiting' => false,
             'test_active' => false,
+            'user_is_ready' => false,
             'has_question' => false,
             'question_data' => null,
             'current_question_id' => null,
@@ -171,6 +173,12 @@ class QuizController extends Controller
             // Check if test has ended
             if ($currentTest->status === 'ended') {
                 $status['exam_ended'] = true;
+            }
+
+            // Check if test is in waiting status
+            if ($currentTest->status === 'waiting') {
+                $status['test_waiting'] = true;
+                $status['user_is_ready'] = $currentTest->isUserReady($user->id);
             }
             
             // Always return current question ID if available
