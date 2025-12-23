@@ -51,3 +51,4 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/exam-manager/users-status', [ExamManagerController::class, 'showUsersStatus'])->name('exam-manager.users-status');
     });
 });
+

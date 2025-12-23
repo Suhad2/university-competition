@@ -33,14 +33,7 @@
                     </div>
                 </div>
                 @elseif($currentTest && $currentTest->isActive() && $currentTest->isUserReady($user->id))
-                {{-- <div class="mb-4">
-                    <i class="fas fa-exclamation-circle fa-3x text-primary mb-3"></i>
-                    <h3>Test is in Progress!</h3>
-                    <p class="lead">The exam has started. Please wait for the next question.</p>
-                    <div class="spinner-border text-primary mt-3" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </div> --}}
+             
                 @else
                 <div class="mb-4">
                     <i class="fas fa-clock fa-3x text-muted mb-3"></i>
@@ -129,9 +122,7 @@
                 <i class="fas fa-hourglass-half fa-4x text-success mb-4"></i>
                 <h3>You submitted your answer successfully</h3>
                 <p class="lead">Wait for the next question...</p>
-                {{-- <div class="spinner-border text-success mt-3" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div> --}}
+            
             </div>
         </div>
 
@@ -482,5 +473,7 @@ function showStatus(message, type) {
     const alertClass = type === 'warning' ? 'warning' : (type === 'success' ? 'success' : 'danger');
     statusElement.innerHTML = `<div class="alert alert-${alertClass}">${message}</div>`;
 }
+
+
 </script>
 @endsection
