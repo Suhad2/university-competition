@@ -150,7 +150,7 @@ class QuizController extends Controller
         return view('quiz.waiting', compact('user', 'currentTest'));
     }
 
-    /**
+       /**
      * Get real-time status for polling fallback
      */
     public function getRealtimeStatus()
@@ -163,17 +163,27 @@ class QuizController extends Controller
             'has_question' => false,
             'question_data' => null,
             'current_question_id' => null,
+            'exam_ended' => false,
             'redirect_url' => null,
         ];
 
         if ($currentTest) {
+            // Check if test has ended
+            if ($currentTest->status === 'ended') {
+                $status['exam_ended'] = true;
+            }
+            
+            // Always return current question ID if available
+            if ($currentTest->currentQuestion) {
+                $status['current_question_id'] = $currentTest->currentQuestion->id;
+            }
+            
             // Check if test is active and user is ready
             if ($currentTest->status === 'active' && $currentTest->isUserReady($user->id)) {
                 $status['test_active'] = true;
                 
                 if ($currentTest->currentQuestion) {
                     $status['has_question'] = true;
-                    $status['current_question_id'] = $currentTest->currentQuestion->id;
                     $status['question_data'] = [
                         'id' => $currentTest->currentQuestion->id,
                         'title' => $currentTest->currentQuestion->title,
@@ -184,12 +194,6 @@ class QuizController extends Controller
                         'question_start_time' => $currentTest->question_start_time,
                     ];
                 }
-            }
-            
-            // Also return current question ID even if test is in waiting status
-            // This helps detect when a new question is about to start
-            if ($currentTest->currentQuestion) {
-                $status['current_question_id'] = $currentTest->currentQuestion->id;
             }
         }
 
