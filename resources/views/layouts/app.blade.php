@@ -71,9 +71,12 @@
                         @if(Auth::user()->university)
                         <li><span class="dropdown-item-text"><strong>University:</strong> {{ Auth::user()->university }}</span></li>
                         @endif
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{{ route('scoreboard') }}"><i class="fas fa-trophy"></i> Scoreboard</a></li>
-                        @if(Auth::user()->isAdmin())
+                       <li><hr class="dropdown-divider"></li>
+@if(Auth::user() && !(isset($currentTest) && $currentTest && $currentTest->isActive() && $currentTest->isUserReady(Auth::id())))
+<li><a class="dropdown-item dashboard-link" href="{{ route('dashboard') }}"><i class="fas fa-play-circle"></i> Dashboard</a></li>
+@endif
+<li><a class="dropdown-item" href="{{ route('scoreboard') }}"><i class="fas fa-trophy"></i> Scoreboard</a></li>
+ @if(Auth::user()->isAdmin())
                         <li><a class="dropdown-item" href="{{ route('admin.dashboard') }}"><i class="fas fa-cog"></i> Admin Panel</a></li>
                         @endif
                         @if(Auth::user()->isExamManager())
