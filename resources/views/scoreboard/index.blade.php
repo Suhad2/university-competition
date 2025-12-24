@@ -59,8 +59,7 @@
         <div class="card bg-info text-white">
             <div class="card-body text-center">
                 <i class="fas fa-percentage fa-2x mb-2"></i>
-                <h4>{{ $scores->count() > 0 ? round(($scores->sum('correct_answers') / $scores->sum('total_questions')) * 100, 1) : 0 }}%</h4>
-                <p class="mb-0">Overall Accuracy</p>
+ <h4>{{ $scores->sum('total_questions') > 0 ? round(($scores->sum('correct_answers') / $scores->sum('total_questions')) * 100, 1) : 0 }}%</h4>                <p class="mb-0">Overall Accuracy</p>
             </div>
         </div>
     </div>

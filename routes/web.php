@@ -25,6 +25,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/quiz/waiting', [QuizController::class, 'showWaiting'])->name('quiz.waiting');
     Route::get('/quiz/realtime-status', [QuizController::class, 'getRealtimeStatus'])->name('quiz.realtime-status');
     Route::post('/quiz/mark-ready', [QuizController::class, 'markAsReady'])->name('quiz.mark-ready');
+    Route::get('/quiz/question-html', [QuizController::class, 'getQuestionHtml'])->name('quiz.question-html');
+    Route::get('/quiz/test-status', [QuizController::class, 'checkTestStatus'])->name('quiz.test-status');
     
     // Real-time scoreboard
     Route::get('/scoreboard', [ScoreboardController::class, 'showScoreboard'])->name('scoreboard');

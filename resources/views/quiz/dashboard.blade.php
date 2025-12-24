@@ -9,13 +9,14 @@
 @section('content')
     <div class="row justify-content-center">
         <div class="col-md-8 col-lg-6">
-            <!-- Waiting State Container -->
+            <!-- حاوية حالة الانتظار - تظهر عندما لا يوجد اختبار نشط -->
             <div id="waiting-container"
                 class="card shadow {{ $currentTest && $currentTest->isActive() && $currentTest->isUserReady($user->id) && !$existingAnswer ? '' : ($currentTest && $currentTest->isActive() && $currentTest->isUserReady($user->id) && $existingAnswer ? 'd-none' : '') }}">
                 <div class="card-header bg-info text-white text-center">
                     <h4><i class="fas fa-graduation-cap"></i> Welcome to University Competition</h4>
                 </div>
                 <div class="card-body text-center">
+                    {{-- إذا كان الاختبار في حالة الانتظار --}}
                     @if ($currentTest && $currentTest->isWaiting())
                         <div class="mb-4">
                             <i class="fas fa-hourglass-half fa-3x text-warning mb-3"></i>
@@ -34,15 +35,10 @@
                                 </ul>
                             </div>
                         </div>
+                    {{-- إذا كان الاختبار نشطاً والمستخدم جاهز --}}
                     @elseif($currentTest && $currentTest->isActive() && $currentTest->isUserReady($user->id))
-                        {{-- <div class="mb-4">
-                    <i class="fas fa-exclamation-circle fa-3x text-primary mb-3"></i>
-                    <h3>Test is in Progress!</h3>
-                    <p class="lead">The exam has started. Please wait for the next question.</p>
-                    <div class="spinner-border text-primary mt-3" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </div> --}}
+    
+                    {{-- لا يوجد اختبار حالياً --}}
                     @else
                         <div class="mb-4">
                             <i class="fas fa-clock fa-3x text-muted mb-3"></i>
@@ -51,7 +47,9 @@
                         </div>
                     @endif
 
+                    {{-- قسم معلومات المشارك وحالة الاختبار --}}
                     <div class="row mt-4">
+                        {{-- بطاقة معلومات المشارك --}}
                         <div class="col-md-6">
                             <div class="card bg-light">
                                 <div class="card-body">
@@ -65,11 +63,13 @@
                                 </div>
                             </div>
                         </div>
+                        {{-- بطاقة حالة الاختبار --}}
                         <div class="col-md-6">
                             <div class="card bg-light">
                                 <div class="card-body">
                                     <h5><i class="fas fa-info-circle"></i> Test Status</h5>
                                     @if ($currentTest)
+                                        {{-- حالة الانتظار --}}
                                         @if ($currentTest->isWaiting())
                                             <p class="mb-1"><span class="badge bg-warning">Waiting</span></p>
                                             <p class="text-muted mb-0">Test is prepared and waiting to start</p>
@@ -82,6 +82,7 @@
                                                     <i class="fas fa-hand-paper"></i> I'm Ready!
                                                 </button>
                                             @endif
+                                        {{-- حالة الاختبار النشط --}}
                                         @elseif($currentTest->isActive())
                                             <p class="mb-1"><span class="badge bg-success">Active</span></p>
                                             <p class="text-muted mb-0">Test is currently in progress</p>
@@ -92,6 +93,7 @@
                                                 <p class="text-warning mt-2"><i class="fas fa-exclamation-triangle"></i> You
                                                     missed the start!</p>
                                             @endif
+                                        {{-- حالة انتهاء الاختبار --}}
                                         @elseif($currentTest->isEnded())
                                             <p class="mb-1"><span class="badge bg-secondary">Ended</span></p>
                                             <p class="text-muted mb-0">Test has been completed</p>
@@ -100,6 +102,7 @@
                                             </a>
                                         @endif
                                     @else
+                                        {{-- لا يوجد اختبار مجدول --}}
                                         <p class="mb-1"><span class="badge bg-secondary">No Test</span></p>
                                         <p class="text-muted mb-0">No test is currently scheduled</p>
                                     @endif
@@ -108,6 +111,7 @@
                         </div>
                     </div>
 
+                    {{-- زر الاستعداد للمشاركة --}}
                     @if ($currentTest && $currentTest->isWaiting())
                         <div class="d-grid mt-4">
                             @if ($isReady)
@@ -126,7 +130,7 @@
                 </div>
             </div>
 
-            <!-- Waiting for Next Question (shown after submitting answer) -->
+            <!-- حاوية انتظار السؤال التالي - تظهر بعد إرسال الإجابة -->
             <div id="waiting-for-next-container" class="card shadow d-none">
                 <div class="card-header bg-success text-white text-center">
                     <h4><i class="fas fa-check-circle"></i> Answer Submitted!</h4>
@@ -135,16 +139,13 @@
                     <i class="fas fa-hourglass-half fa-4x text-success mb-4"></i>
                     <h3>You submitted your answer successfully</h3>
                     <p class="lead">Wait for the next question...</p>
-                    {{-- <div class="spinner-border text-success mt-3" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div> --}}
                 </div>
             </div>
 
-            <!-- Question Container (Shows when test is active and user is ready) -->
-            <div id="question-container"
-                class="{{ $currentTest && $currentTest->isActive() && $currentTest->isUserReady($user->id) && !$existingAnswer ? '' : 'd-none' }}">
-                <div class="card question-card">
+               <!-- حاوية السؤال - تظهر عندما يكون الاختبار نشطاً والمستخدم جاهز -->
+            <div id="question-container" class="d-none">
+                 <div class="card question-card">
+                    {{-- رأس بطاقة السؤال مع المؤقت --}}
                     <div class="card-header bg-primary text-white">
                         <div class="d-flex justify-content-between align-items-center">
                             <h5 class="mb-0"><i class="fas fa-question-circle"></i> Question</h5>
@@ -152,14 +153,17 @@
                         </div>
                     </div>
                     <div class="card-body">
+                        {{-- نص السؤال --}}
                         <div class="question-content mb-4">
                             <h4>{{ $question ? $question->title : 'Loading question...' }}</h4>
                         </div>
 
+                        {{-- خيارات الإجابة --}}
                         <div class="answer-options">
                             <form id="answerForm">
                                 @csrf
                                 <div class="row">
+                                    {{-- الخيار أ --}}
                                     <div class="col-md-6">
                                         <div class="answer-option" data-answer="A">
                                             <div class="d-flex align-items-center">
@@ -168,6 +172,7 @@
                                             </div>
                                         </div>
                                     </div>
+                                    {{-- الخيار ب --}}
                                     <div class="col-md-6">
                                         <div class="answer-option" data-answer="B">
                                             <div class="d-flex align-items-center">
@@ -178,6 +183,7 @@
                                     </div>
                                 </div>
                                 <div class="row mt-3">
+                                    {{-- الخيار ج --}}
                                     <div class="col-md-6">
                                         <div class="answer-option" data-answer="C">
                                             <div class="d-flex align-items-center">
@@ -186,6 +192,7 @@
                                             </div>
                                         </div>
                                     </div>
+                                    {{-- الخيار د --}}
                                     <div class="col-md-6">
                                         <div class="answer-option" data-answer="D">
                                             <div class="d-flex align-items-center">
@@ -198,10 +205,12 @@
                             </form>
                         </div>
 
+                        {{-- رسالة الحالة --}}
                         <div class="text-center mt-4">
                             <div id="statusMessage"></div>
                         </div>
 
+                        {{-- زر إرسال الإجابة --}}
                         <div class="text-center mt-4">
                             <button type="button" id="submitAnswerBtn" class="btn btn-success btn-lg"
                                 onclick="submitAnswer()">
@@ -211,6 +220,7 @@
                     </div>
                 </div>
 
+                {{-- حقول مخفية لتخزين بيانات السؤال والاختبار --}}
                 <input type="hidden" id="questionId" value="{{ $question ? $question->id : '' }}">
                 <input type="hidden" id="testId" value="{{ $currentTest ? $currentTest->id : '' }}">
                 <input type="hidden" id="startTime"
@@ -223,102 +233,117 @@
     </div>
 
     <script>
+        // Global variables for timer and state control
         let timeRemaining = 35;
         let timerInterval = null;
         let hasAnswered = {{ $existingAnswer ? 'true' : 'false' }};
         let selectedAnswer = null;
         let currentPollingInterval = null;
+        let currentQuestionId = {{ $question ? $question->id : 'null' }};
+        let partialUpdateEnabled = true; // Enable partial page updates by default
 
-        // Initialize when page loads
+        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
-            // Check if test is waiting and user is ready - start 1-second refresh
+            console.log('Initializing quiz dashboard with partial updates enabled...');
+            
             @if ($currentTest && $currentTest->isWaiting() && $isReady)
-                // Start 1-second refresh to check for new questions
-                startPolling();
+                // Test is waiting and user is ready - start polling for first question
+                startPollingForFirstQuestion();
             @elseif ($currentTest && $currentTest->isActive() && $currentTest->isUserReady($user->id))
                 @if ($existingAnswer)
-                    // User already answered, show waiting for next question
+                    // User has already answered - show waiting screen
                     showWaitingForNext();
-                    // Start polling to detect next question
+                    // Start polling for next question
                     startPollingForNextQuestion();
                 @else
-                    // Question is active, initialize the timer
+                    // Question is active - initialize timer
                     initializeTimer();
                 @endif
             @else
-                // No active test or user not ready - start polling to detect when test becomes available
+                // No active test or user not ready - start polling for test availability
                 startPollingForTestAvailability();
             @endif
-        });
-        // Poll for test availability (when no test exists or test is not in waiting status)
-        // This enables real-time updates when exam manager starts a test
-        function startPollingForTestAvailability() {
-            console.log('Starting polling for test availability...');
 
+            // Attach answer option click handlers
+            attachAnswerOptionListeners();
+        });
+
+        /**
+         * Poll for first question when test is in waiting status
+         * Uses partial page update instead of full reload
+         */
+        function startPollingForFirstQuestion() {
+            console.log('Starting poll for first question with partial updates...');
+            
             currentPollingInterval = setInterval(async function() {
                 try {
                     const response = await fetch('/quiz/realtime-status');
                     const data = await response.json();
 
-                    console.log('Test availability check:', data);
+                    console.log('Checking for first question:', data);
 
-                    // Check if test is now in waiting status (Test is Ready! screen)
-                    if (data.test_waiting) {
-                        console.log('Test is now waiting, reloading page to show Test is Ready! screen...');
-                        location.reload();
-                        return;
-                    }
-
-                    // Check if test is active with a question
-                    if (data.test_active && data.has_question) {
-                        console.log('Test is active with question, reloading page...');
-                        location.reload();
-                        return;
-                    }
-
-                    // Also check if exam ended (to update UI accordingly)
+                    // Check for test ended
                     if (data.exam_ended) {
-                        console.log('Exam ended detected, reloading page...');
-                        location.reload();
+                        clearInterval(currentPollingInterval);
+                        if (data.redirect_url) {
+                            window.location.href = data.redirect_url;
+                        } else {
+                            location.reload();
+                        }
                         return;
+                    }
+
+                    // Check for active question with HTML (user hasn't answered yet)
+                    if (data.test_active && data.has_question && data.html) {
+                        console.log('First question detected! Updating page partially...');
+                        clearInterval(currentPollingInterval);
+                        updateQuestionContainerPartial(data);
+                    }
+
+                    // Also check ready count update
+                    if (data.test_waiting && data.ready_count !== undefined) {
+                        updateReadyCountDisplay(data.ready_count);
                     }
 
                 } catch (error) {
-                    console.error('Error polling for test availability:', error);
+                    console.error('Error polling for first question:', error);
                 }
-            }, 1000); // Poll every 1 second
-        }
-        // Start polling with 1-second refresh (during waiting phase)
-        function startPolling() {
-            console.log('Starting 1-second refresh polling...');
-            currentPollingInterval = setInterval(function() {
-                location.reload();
-            }, 1000); // Refresh every 1 second
+            }, 1000);
         }
 
-        // Start polling to detect next question (after submitting answer)
-        // Poll for next question
+        /**
+         * Poll for next question after answering current question
+         * Uses partial page update instead of full reload
+         */
         function startPollingForNextQuestion() {
-            console.log('Starting to poll for next question...');
-
-            setInterval(async function() {
+            console.log('Starting poll for next question with partial updates...');
+            
+            currentPollingInterval = setInterval(async function() {
                 try {
                     const response = await fetch('/quiz/realtime-status');
                     const data = await response.json();
 
-                    // ✅ نجيب ID الحالي كل مرة
-                    const currentQuestionId = document.getElementById('questionId')?.value;
+                    console.log('Checking for next question:', data);
 
-                    // Check if there's a new question
-                    if (data.current_question_id && data.current_question_id != currentQuestionId) {
-                        console.log('New question detected! Reloading...');
-                        location.reload(); // يبقى نفس سلوكك
+                    // Check for test ended
+                    if (data.exam_ended) {
+                        clearInterval(currentPollingInterval);
+                        if (data.redirect_url) {
+                            window.location.href = data.redirect_url;
+                        } else {
+                            location.reload();
+                        }
+                        return;
                     }
 
-                    if (data.has_question && data.question_data &&
-                        data.question_data.id != currentQuestionId) {
-                        console.log('New question (active) detected! Reloading...');
-                        location.reload();
+                    // Check for new question
+                    if (data.has_question && data.html && data.question_data) {
+                        const newQuestionId = data.question_data.id;
+                        
+                        if (newQuestionId !== currentQuestionId) {
+                            console.log('New question detected! Updating page partially...');
+                            updateQuestionContainerPartial(data);
+                        }
                     }
 
                 } catch (error) {
@@ -327,157 +352,143 @@
             }, 1000);
         }
 
+        /**
+         * Poll for test availability when no test is active
+         * Uses partial page update for status changes
+         */
+        function startPollingForTestAvailability() {
+            console.log('Starting poll for test availability with partial updates...');
+            
+            currentPollingInterval = setInterval(async function() {
+                try {
+                    const response = await fetch('/quiz/realtime-status');
+                    const data = await response.json();
 
-        // Check if there's a new question
-        function checkForNewQuestion() {
-            fetch('/quiz/realtime-status', {
-                    method: 'GET',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Content-Type': 'application/json',
-                    },
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Realtime status:', data);
+                    console.log('Checking test availability:', data);
 
-                    // Check if exam ended
-                    if (data.exam_ended) {
+                    // Test became available with waiting status
+                    if (data.test_waiting && data.user_is_ready) {
+                        console.log('Test available and user ready! Updating partial...');
+                        updateWaitingStatusPartial(data);
                         clearInterval(currentPollingInterval);
-                        window.location.reload();
-                        return;
+                        startPollingForFirstQuestion();
                     }
-
-                    // Check if there's a new question
-                    if (data.has_question && data.question_data) {
-                        const newQuestionId = data.question_data.id;
-                        const currentQuestionId = parseInt(document.getElementById('currentQuestionId').value);
-
-                        if (newQuestionId !== currentQuestionId) {
-                            // New question detected!
-                            clearInterval(currentPollingInterval);
+                    // Test became active with question
+                    else if (data.test_active && data.has_question && data.html) {
+                        console.log('Test active with question! Updating partial...');
+                        updateQuestionContainerPartial(data);
+                        clearInterval(currentPollingInterval);
+                    }
+                    // Test ended
+                    else if (data.exam_ended) {
+                        console.log('Test ended!');
+                        clearInterval(currentPollingInterval);
+                        if (data.redirect_url) {
+                            window.location.href = data.redirect_url;
+                        } else {
                             location.reload();
                         }
                     }
-                })
-                .catch(error => {
-                    console.error('Error checking for new question:', error);
-                });
-        }
-
-        // Show waiting for next question message
-        function showWaitingForNext() {
-            document.getElementById('waiting-container').classList.add('d-none');
-            document.getElementById('question-container').classList.add('d-none');
-            document.getElementById('waiting-for-next-container').classList.remove('d-none');
-        }
-
-        // Initialize timer based on server time
-        function initializeTimer() {
-            const startTime = parseInt(document.getElementById('startTime').value);
-            const timeLimit = parseInt(document.getElementById('timeLimit').value);
-            const currentTime = Math.floor(Date.now() / 1000);
-
-            // Calculate actual remaining time from server timestamp
-            const elapsed = currentTime - startTime;
-            const calculatedRemaining = timeLimit - elapsed;
-
-            // Use the calculated remaining time, but ensure it's valid
-            if (calculatedRemaining > 0 && calculatedRemaining <= timeLimit) {
-                timeRemaining = calculatedRemaining;
-            } else if (calculatedRemaining <= 0) {
-                timeRemaining = 0;
-            } else {
-                // If calculation seems wrong, use the server value
-                timeRemaining = parseInt(document.getElementById('timeLimit').value);
-            }
-
-            // Ensure timeRemaining doesn't exceed the limit
-            if (timeRemaining > timeLimit) {
-                timeRemaining = timeLimit;
-            }
-
-            // Update the display immediately
-            const timerElement = document.getElementById('timer');
-            timerElement.textContent = timeRemaining + 's';
-            timerElement.className = 'timer-display bg-warning';
-
-            // Start the countdown
-            timerInterval = setInterval(function() {
-                timeRemaining--;
-
-                if (timeRemaining <= 0) {
-                    timerElement.textContent = '0s';
-                    timerElement.className = 'timer-display bg-danger';
-                    clearInterval(timerInterval);
-                    disableAnswers();
-                    return;
-                }
-
-                timerElement.textContent = timeRemaining + 's';
-
-                // Change color based on time remaining
-                if (timeRemaining <= 5) {
-                    timerElement.className = 'timer-display bg-danger';
-                } else if (timeRemaining <= 10) {
-                    timerElement.className = 'timer-display bg-warning';
-                }
-            }, 1000);
-        }
-
-        // Disable answer selection
-        function disableAnswers() {
-            document.querySelectorAll('.answer-option').forEach(option => {
-                option.style.pointerEvents = 'none';
-                option.classList.add('disabled');
-            });
-            document.getElementById('submitAnswerBtn').style.display = 'none';
-            hasAnswered = true;
-            document.getElementById('hasAnswered').value = 'true';
-        }
-
-        // Mark user as ready
-        function markAsReady() {
-            if (!confirm(
-                    'Are you ready to participate in this test? Make sure to stay on this page until the test ends.')) {
-                return;
-            }
-
-            console.log('Marking as ready...');
-
-            fetch('{{ route('quiz.mark-ready') }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Content-Type': 'application/json',
-                    },
-                })
-                .then(response => {
-                    console.log('Response status:', response.status);
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Response data:', data);
-                    if (data.success) {
-                        // Stop the test availability polling since we're now marked as ready
-                        if (currentPollingInterval) {
-                            clearInterval(currentPollingInterval);
-                        }
-                        // Reload to start the waiting phase polling
-                        location.reload();
-                    } else {
-                        alert(data.error || 'Something went wrong. Please try again.');
+                    // Update ready count if visible
+                    if (data.test_waiting && data.ready_count !== undefined) {
+                        updateReadyCountDisplay(data.ready_count);
                     }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Something went wrong. Please try again.');
-                });
+
+                } catch (error) {
+                    console.error('Error polling for test availability:', error);
+                }
+            }, 1500);
         }
-        // Answer selection click handlers
-        document.addEventListener('DOMContentLoaded', function() {
+
+        /**
+         * Update question container using partial page update
+         * Replaces question container HTML without full page reload
+         */
+        function updateQuestionContainerPartial(data) {
+            console.log('Updating question container partially...');
+            
+            // Hide other containers
+            document.getElementById('waiting-container')?.classList.add('d-none');
+            document.getElementById('waiting-for-next-container')?.classList.add('d-none');
+
+            // Get the main container
+            const mainContainer = document.querySelector('.col-md-8');
+            
+            if (mainContainer && data.html) {
+                // Replace the question container content
+                const questionContainer = document.getElementById('question-container');
+                 if (questionContainer) {
+                    questionContainer.innerHTML = data.html;
+                    // CRITICAL: Remove d-none class to make question visible
+                    questionContainer.classList.remove('d-none');
+                } else {
+                    // If question container doesn't exist, add it
+                    mainContainer.innerHTML = data.html;
+                    // Show the newly added question container
+                    const newQuestionContainer = document.getElementById('question-container');
+                    if (newQuestionContainer) {
+                        newQuestionContainer.classList.remove('d-none');
+                    }
+                }
+
+                // Update current question ID
+                if (data.question_data) {
+                    currentQuestionId = data.question_data.id;
+                }
+
+                // Reset state
+                hasAnswered = false;
+                selectedAnswer = null;
+                timeRemaining = 35;
+
+                // Initialize timer for new question
+                initializeTimer();
+
+                // Re-attach answer option click handlers
+                attachAnswerOptionListeners();
+
+                console.log('Question container updated successfully');
+            } else {
+                // Fallback to full reload if partial update fails
+                console.log('Partial update failed, falling back to full reload...');
+                location.reload();
+            }
+        }
+
+        /**
+         * Update waiting status using partial page update
+         */
+        function updateWaitingStatusPartial(data) {
+            console.log('Updating waiting status partially...');
+            
+            const waitingContainer = document.getElementById('waiting-container');
+            if (waitingContainer) {
+                waitingContainer.classList.remove('d-none');
+            }
+
+            // Update ready count if visible
+            if (data.ready_count !== undefined) {
+                updateReadyCountDisplay(data.ready_count);
+            }
+        }
+
+        /**
+         * Update ready count display
+         */
+        function updateReadyCountDisplay(count) {
+            const readyCountElement = document.querySelector('#ready-count');
+            if (readyCountElement) {
+                readyCountElement.textContent = count;
+            }
+        }
+
+        /**
+         * Attach click handlers to answer options
+         */
+        function attachAnswerOptionListeners() {
             document.querySelectorAll('.answer-option').forEach(option => {
                 option.addEventListener('click', function() {
+                    // Prevent selection if user has answered or time is up
                     if (hasAnswered || timeRemaining <= 0) return;
 
                     // Remove previous selections
@@ -492,53 +503,227 @@
                     selectedAnswer = this.dataset.answer;
                 });
             });
-        });
+        }
 
-        // Submit answer function
+        /**
+         * Show waiting for next question screen
+         */
+        function showWaitingForNext() {
+            document.getElementById('waiting-container')?.classList.add('d-none');
+            document.getElementById('question-container')?.classList.add('d-none');
+            document.getElementById('waiting-for-next-container')?.classList.remove('d-none');
+        }
+
+        /**
+         * Initialize timer based on server time
+         */
+        function initializeTimer() {
+            const startTimeEl = document.getElementById('startTime');
+            const timeLimitEl = document.getElementById('timeLimit');
+            
+            if (!startTimeEl || !timeLimitEl) {
+                console.error('Timer elements not found');
+                return;
+            }
+
+            const startTime = parseInt(startTimeEl.value);
+            const timeLimit = parseInt(timeLimitEl.value);
+            const currentTime = Math.floor(Date.now() / 1000);
+
+            // Calculate remaining time from server timestamp
+            const elapsed = currentTime - startTime;
+            const calculatedRemaining = timeLimit - elapsed;
+
+            // Use calculated remaining time with validation
+            if (calculatedRemaining > 0 && calculatedRemaining <= timeLimit) {
+                timeRemaining = calculatedRemaining;
+            } else if (calculatedRemaining <= 0) {
+                timeRemaining = 0;
+            } else {
+                timeRemaining = parseInt(timeLimitEl.value);
+            }
+
+            // Ensure remaining time doesn't exceed limit
+            if (timeRemaining > timeLimit) {
+                timeRemaining = timeLimit;
+            }
+
+            // Update display immediately
+            const timerElement = document.getElementById('timer');
+            if (timerElement) {
+                timerElement.textContent = timeRemaining + 's';
+                timerElement.className = 'timer-display bg-warning';
+            }
+
+            // Start countdown
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            timerInterval = setInterval(function() {
+                timeRemaining--;
+
+                // Time's up
+                if (timeRemaining <= 0) {
+                    if (timerElement) {
+                        timerElement.textContent = '0s';
+                        timerElement.className = 'timer-display bg-danger';
+                    }
+                    clearInterval(timerInterval);
+                    disableAnswers();
+                    return;
+                }
+
+                if (timerElement) {
+                    timerElement.textContent = timeRemaining + 's';
+
+                    // Change color based on remaining time
+                    if (timeRemaining <= 5) {
+                        timerElement.className = 'timer-display bg-danger';
+                    } else if (timeRemaining <= 10) {
+                        timerElement.className = 'timer-display bg-warning';
+                    }
+                }
+            }, 1000);
+        }
+
+        /**
+         * Disable answer selection
+         */
+        function disableAnswers() {
+            document.querySelectorAll('.answer-option').forEach(option => {
+                option.style.pointerEvents = 'none';
+                option.classList.add('disabled');
+            });
+            
+            const submitBtn = document.getElementById('submitAnswerBtn');
+            if (submitBtn) {
+                submitBtn.style.display = 'none';
+            }
+            
+            hasAnswered = true;
+            
+            const hasAnsweredEl = document.getElementById('hasAnswered');
+            if (hasAnsweredEl) {
+                hasAnsweredEl.value = 'true';
+            }
+        }
+
+        /**
+         * Mark user as ready to participate
+         */
+        function markAsReady() {
+            if (!confirm('Are you ready to participate in this test? Make sure to stay on this page until the test ends.')) {
+                return;
+            }
+
+            console.log('Marking user as ready...');
+
+            fetch('{{ route('quiz.mark-ready') }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Response data:', data);
+                if (data.success) {
+                    // Stop current polling
+                    if (currentPollingInterval) {
+                        clearInterval(currentPollingInterval);
+                    }
+                    
+                    // Update UI to show ready status
+                    updateReadyButtonPartial(data);
+                    
+                    // Start polling for first question
+                    startPollingForFirstQuestion();
+                } else {
+                    alert(data.error || 'An error occurred. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        /**
+         * Update ready button using partial update
+         */
+        function updateReadyButtonPartial(data) {
+            // Update ready count if visible
+            updateReadyCountDisplay(data.ready_count);
+
+            // Update ready button state
+            const readyBtn = document.querySelector('.btn-warning');
+            if (readyBtn) {
+                readyBtn.classList.remove('btn-warning');
+                readyBtn.classList.add('btn-success');
+                readyBtn.disabled = true;
+                readyBtn.innerHTML = '<i class="fas fa-check"></i> You\'re Ready!';
+                
+                // Also update large button if exists
+                const largeReadyBtn = document.querySelector('.d-grid .btn-warning');
+                if (largeReadyBtn) {
+                    largeReadyBtn.classList.remove('btn-warning');
+                    largeReadyBtn.classList.add('btn-success');
+                    largeReadyBtn.disabled = true;
+                    largeReadyBtn.innerHTML = '<i class="fas fa-check"></i> You\'re Ready! Waiting for First Question...';
+                }
+            }
+        }
+
+        /**
+         * Submit answer to server
+         */
         function submitAnswer() {
             if (!selectedAnswer) {
                 showStatus('Please select an answer first!', 'warning');
                 return;
             }
 
-            const questionId = document.getElementById('questionId').value;
-            const testId = document.getElementById('testId').value;
-
             const formData = new FormData();
             formData.append('selected_answer', selectedAnswer);
             formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
 
             fetch('/quiz/answer', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Disable answers and hide submit button
-                        disableAnswers();
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Disable answers and hide submit button
+                    disableAnswers();
 
-                        // Hide question container and show waiting for next
-                        document.getElementById('question-container').classList.add('d-none');
-                        document.getElementById('waiting-for-next-container').classList.remove('d-none');
+                    // Hide question container and show waiting for next
+                    document.getElementById('question-container')?.classList.add('d-none');
+                    document.getElementById('waiting-for-next-container')?.classList.remove('d-none');
 
-                        // Start polling for next question
-                        startPollingForNextQuestion();
-                    } else {
-                        showStatus(data.error || 'Error submitting answer', 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showStatus('Error submitting answer', 'error');
-                });
+                    // Start polling for next question
+                    startPollingForNextQuestion();
+                } else {
+                    showStatus(data.error || 'Error submitting answer', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showStatus('Error submitting answer', 'error');
+            });
         }
 
-        // Show status message
+        /**
+         * Show status message to user
+         */
         function showStatus(message, type) {
             const statusElement = document.getElementById('statusMessage');
-            const alertClass = type === 'warning' ? 'warning' : (type === 'success' ? 'success' : 'danger');
-            statusElement.innerHTML = `<div class="alert alert-${alertClass}">${message}</div>`;
+            if (statusElement) {
+                const alertClass = type === 'warning' ? 'warning' : (type === 'success' ? 'success' : 'danger');
+                statusElement.innerHTML = `<div class="alert alert-${alertClass}">${message}</div>`;
+            }
         }
     </script>
 @endsection
