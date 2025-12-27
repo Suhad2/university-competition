@@ -175,7 +175,7 @@ class QuizController extends Controller
             // Check if test has ended
             if ($currentTest->status === 'ended') {
                 $status['exam_ended'] = true;
-                $status['redirect_url'] = route('scoreboard');
+                $status['redirect_url'] = route('dashboard');
             }
 
             // Check if test is in waiting status
@@ -311,7 +311,7 @@ class QuizController extends Controller
 
                 if ($currentTest->status === 'ended') {
                     $response['exam_ended'] = true;
-                    $response['redirect_url'] = route('scoreboard');
+                    $response['redirect_url'] = route('dashboard');
                 } elseif ($currentTest->status === 'active') {
                     if ($currentTest->currentQuestion) {
                         $response['has_question'] = true;
