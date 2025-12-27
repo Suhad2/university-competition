@@ -66,30 +66,58 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="{{ route('dashboard') }}">
-                <i class="fas fa-graduation-cap"></i> University Competition
-            </a>
 
+            {{-- Brand --}}
+            @auth
+                @if (auth()->user()->isAdmin())
+                    <a class="navbar-brand" href="{{ route('admin.dashboard') }}">
+                    @elseif (auth()->user()->isExamManager())
+                        <a class="navbar-brand" href="{{ route('exam-manager.dashboard') }}">
+                        @else
+                            <a class="navbar-brand" href="{{ route('dashboard') }}">
+                @endif
+                <i class="fas fa-graduation-cap"></i> University Competition
+                </a>
+            @endauth
+
+            @guest
+                <a class="navbar-brand" href="{{ route('login') }}">
+                    <i class="fas fa-graduation-cap"></i> University Competition
+                </a>
+            @endguest
+
+            {{-- User Dropdown --}}
             @auth
                 <div class="navbar-nav ms-auto">
                     <div class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
                             data-bs-toggle="dropdown">
-                            <i class="fas fa-user"></i> {{ Auth::user()->name }}
+                            <i class="fas fa-user"></i> {{ auth()->user()->name }}
                         </a>
+
                         <ul class="dropdown-menu">
-                            <li><span class="dropdown-item-text"><strong>Role:</strong>
-                                    {{ ucfirst(str_replace('_', ' ', Auth::user()->role)) }}</span></li>
-                            @if (Auth::user()->university)
-                                <li><span class="dropdown-item-text"><strong>University:</strong>
-                                        {{ Auth::user()->university }}</span></li>
+                            <li>
+                                <span class="dropdown-item-text">
+                                    <strong>Role:</strong>
+                                    {{ ucfirst(str_replace('_', ' ', auth()->user()->role)) }}
+                                </span>
+                            </li>
+
+                            @if (auth()->user()->university)
+                                <li>
+                                    <span class="dropdown-item-text">
+                                        <strong>University:</strong>
+                                        {{ auth()->user()->university }}
+                                    </span>
+                                </li>
                             @endif
+
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
 
-                            {{-- Admin Panel --}}
-                            @if (Auth::user()->isAdmin())
+                            {{-- Admin --}}
+                            @if (auth()->user()->isAdmin())
                                 <li>
                                     <a class="dropdown-item" href="{{ route('admin.dashboard') }}">
                                         <i class="fas fa-cog"></i> Admin Panel
@@ -97,14 +125,14 @@
                                 </li>
 
                                 {{-- Exam Manager --}}
-                            @elseif (Auth::user()->isExamManager())
+                            @elseif (auth()->user()->isExamManager())
                                 <li>
                                     <a class="dropdown-item" href="{{ route('exam-manager.dashboard') }}">
                                         <i class="fas fa-play-circle"></i> Exam Manager
                                     </a>
                                 </li>
 
-                                {{-- Normal Dashboard (مرة وحدة فقط) --}}
+                                {{-- Participant --}}
                             @else
                                 {{-- @if (!isset($currentTest) || !$currentTest || !$currentTest->isActive() || !$currentTest->isUserReady(Auth::id()))
                                     <li>
@@ -121,14 +149,18 @@
                             @endif
 
 
+                            <li>
+                                <a class="dropdown-item" href="{{ route('scoreboard') }}">
+                                    <i class="fas fa-trophy"></i> Scoreboard
+                                </a>
+                            </li>
 
-                            <li><a class="dropdown-item" href="{{ route('scoreboard') }}"><i class="fas fa-trophy"></i>
-                                    Scoreboard</a></li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
+
                             <li>
-                                <form method="POST" action="{{ route('logout') }}" style="margin: 0;">
+                                <form method="POST" action="{{ route('logout') }}">
                                     @csrf
                                     <button type="submit" class="dropdown-item">
                                         <i class="fas fa-sign-out-alt"></i> Logout
@@ -139,8 +171,10 @@
                     </div>
                 </div>
             @endauth
+
         </div>
     </nav>
+
 
     <main class="container mt-4">
         @if (session('success'))

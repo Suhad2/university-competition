@@ -12,9 +12,9 @@ class AuthController extends Controller
 {
     public function showLogin()
     {
-        if (Auth::check()) {
-            return redirect()->route('dashboard');
-        }
+   if (Auth::check()) {
+    return $this->redirectToDashboard();
+}
         
         return view('auth.login');
     }
@@ -27,10 +27,10 @@ class AuthController extends Controller
         ]);
 
         if (Auth::attempt($request->only('email', 'password'))) {
-            $request->session()->regenerate();
-            
-            return redirect()->intended(route('dashboard'));
-        }
+    $request->session()->regenerate();
+
+    return $this->redirectToDashboard();
+}
 
         return back()->withErrors([
             'email' => 'The provided credentials do not match our records.',
@@ -39,9 +39,9 @@ class AuthController extends Controller
 
     public function showRegister()
     {
-        if (Auth::check()) {
-            return redirect()->route('dashboard');
-        }
+if (Auth::check()) {
+    return $this->redirectToDashboard();
+}
         
         return view('auth.register');
     }
@@ -62,10 +62,9 @@ class AuthController extends Controller
             'university' => $request->university,
             'role' => 'user',
         ]);
+Auth::login($user);
 
-        Auth::login($user);
-
-        return redirect(route('dashboard'));
+return $this->redirectToDashboard();
     }
 
     public function logout(Request $request)
@@ -77,4 +76,15 @@ class AuthController extends Controller
 
         return redirect(route('login'));
     }
+
+private function redirectToDashboard()
+{
+    $user = Auth::user();
+
+    return match ($user->role) {
+        'admin'         => redirect()->route('admin.dashboard'),
+        'exam_manager'  => redirect()->route('exam-manager.dashboard'),
+        default         => redirect()->route('dashboard'),
+    };
+}
 }
