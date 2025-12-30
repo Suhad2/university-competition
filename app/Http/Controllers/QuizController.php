@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Test;
-use App\Models\Question;
-use App\Models\Answer;
 use App\Models\Score;
+use App\Models\Answer;
+use App\Models\Question;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use App\Events\ParticipantReady;
 
 class QuizController extends Controller
 {
@@ -26,14 +28,12 @@ class QuizController extends Controller
                 $isReady = $currentTest->isUserReady($user->id);
                 $readyCount = $currentTest->getReadyParticipantsCount();
             } elseif ($currentTest->status === 'active') {
-                // Check if user is a ready participant
                 $isReady = $currentTest->isUserReady($user->id);
 
                 if ($isReady && $currentTest->currentQuestion) {
                     $question = $currentTest->currentQuestion;
                     $timeRemaining = $currentTest->getTimeRemaining();
 
-                    // Check if user has already answered this question
                     $existingAnswer = Answer::where('test_id', $currentTest->id)
                         ->where('user_id', $user->id)
                         ->where('question_id', $question->id)
@@ -60,7 +60,6 @@ class QuizController extends Controller
                 return response()->json(['error' => 'No test available'], 400);
             }
             
-            // Check if user is already ready
             if ($currentTest->isUserReady($user->id)) {
                 return response()->json([
                     'success' => true, 
@@ -69,23 +68,33 @@ class QuizController extends Controller
                 ]);
             }
             
+                           // Add participant to the test's ready list FIRST
             $currentTest->addReadyParticipant($user->id);
             
-            return response()->json([
-                'success' => true, 
-                'message' => 'You are now ready to participate!',
-                'readyCount' => $currentTest->getReadyParticipantsCount()
-            ]);
-            
+            // Get the UPDATED count after adding the user
+            $readyCount = $currentTest->getReadyParticipantsCount();
+
+            // Fire the event AFTER saving to database
+                        event(new ParticipantReady(
+                            $currentTest,
+                            $user,
+                            $readyCount
+                        ));
+
+                        return response()->json([
+                            'success' => true, 
+                            'message' => 'You are now ready to participate!',
+                            'readyCount' => $readyCount
+                        ]);
+                        
         } catch (\Exception $e) {
-            \Log::error('Error in markAsReady: ' . $e->getMessage());
+            Log::error('Error in markAsReady: ' . $e->getMessage());
             return response()->json(['error' => 'An error occurred. Please try again.'], 500);
         }
     }
 
     public function showQuiz()
     {
-        // Redirect to dashboard - question will appear there directly
         return redirect()->route('dashboard');
     }
 
@@ -109,20 +118,17 @@ class QuizController extends Controller
             'selected_answer' => 'required|in:A,B,C,D',
         ]);
 
-        // Check if user has already answered this question
         $existingAnswer = Answer::where('test_id', $currentTest->id)
             ->where('user_id', $user->id)
             ->where('question_id', $question->id)
             ->first();
 
         if ($existingAnswer) {
-            // Update existing answer
             $existingAnswer->update([
                 'selected_answer' => $request->selected_answer,
                 'answered_at' => now(),
             ]);
         } else {
-            // Create new answer
             $isCorrect = $request->selected_answer === $question->correct_answer;
             
             Answer::create([
@@ -134,7 +140,6 @@ class QuizController extends Controller
                 'answered_at' => now(),
             ]);
 
-            // Update or create score
             $score = $user->scores()->firstOrCreate(['test_id' => $currentTest->id]);
             $score->updateScore();
         }
@@ -151,76 +156,52 @@ class QuizController extends Controller
     }
 
     /**
-     * Get real-time status for polling fallback
+     * Get current test status for initial page load
      */
-    public function getRealtimeStatus()
+    public function getCurrentStatus()
     {
         $user = Auth::user();
         $currentTest = Test::latest()->first();
 
         $status = [
-            'test_waiting' => false,
-            'test_active' => false,
-            'user_is_ready' => false,
-            'has_question' => false,
-            'question_data' => null,
-            'current_question_id' => null,
-            'exam_ended' => false,
-            'redirect_url' => null,
+            'has_test' => false,
+            'test_status' => null,
+            'test_id' => null,
+            'user_ready' => false,
             'ready_count' => 0,
-            'html' => null,
+            'has_question' => false,
+            'question' => null,
+            'question_start_time' => null,
+            'time_limit' => 35,
+            'exam_ended' => false,
         ];
 
         if ($currentTest) {
-            // Check if test has ended
-            if ($currentTest->status === 'ended') {
-                $status['exam_ended'] = true;
-                $status['redirect_url'] = route('dashboard');
-            }
+            $status['has_test'] = true;
+            $status['test_status'] = $currentTest->status;
+            $status['test_id'] = $currentTest->id;
 
-            // Check if test is in waiting status
             if ($currentTest->status === 'waiting') {
-                $status['test_waiting'] = true;
-                $status['user_is_ready'] = $currentTest->isUserReady($user->id);
+                $status['user_ready'] = $currentTest->isUserReady($user->id);
                 $status['ready_count'] = $currentTest->getReadyParticipantsCount();
-            }
-            
-            // Always return current question ID if available
-            if ($currentTest->currentQuestion) {
-                $status['current_question_id'] = $currentTest->currentQuestion->id;
-            }
-            
-            // Check if test is active and user is ready
-            if ($currentTest->status === 'active' && $currentTest->isUserReady($user->id)) {
-                $status['test_active'] = true;
-                
-                if ($currentTest->currentQuestion) {
+            } elseif ($currentTest->status === 'active') {
+                $status['user_ready'] = $currentTest->isUserReady($user->id);
+
+                if ($status['user_ready'] && $currentTest->currentQuestion) {
                     $question = $currentTest->currentQuestion;
                     $status['has_question'] = true;
-                    $status['question_data'] = [
+                    $status['question'] = [
                         'id' => $question->id,
                         'title' => $question->title,
                         'option_a' => $question->option_a,
                         'option_b' => $question->option_b,
                         'option_c' => $question->option_c,
                         'option_d' => $question->option_d,
-                        'question_start_time' => $currentTest->question_start_time,
                     ];
-
-                    // Check if user has already answered this question
-                    $existingAnswer = Answer::where('test_id', $currentTest->id)
-                        ->where('user_id', $user->id)
-                        ->where('question_id', $question->id)
-                        ->first();
-
-                    // Generate HTML only if user hasn't answered yet
-                    if (!$existingAnswer) {
-                        $status['html'] = view('quiz.partials.question-container', [
-                            'question' => $question,
-                            'currentTest' => $currentTest,
-                        ])->render();
-                    }
+                    $status['question_start_time'] = $currentTest->question_start_time;
                 }
+            } elseif ($currentTest->status === 'ended') {
+                $status['exam_ended'] = true;
             }
         }
 
@@ -228,7 +209,7 @@ class QuizController extends Controller
     }
 
     /**
-     * Get question HTML for partial page update
+     * Get question HTML for partial updates
      */
     public function getQuestionHtml(Request $request)
     {
@@ -243,7 +224,6 @@ class QuizController extends Controller
                 ], 400);
             }
 
-            // Check if user is ready
             if (!$currentTest->isUserReady($user->id)) {
                 return response()->json([
                     'success' => false,
@@ -251,7 +231,6 @@ class QuizController extends Controller
                 ], 403);
             }
 
-            // Check if user has already answered
             $existingAnswer = Answer::where('test_id', $currentTest->id)
                 ->where('user_id', $user->id)
                 ->where('question_id', $currentTest->currentQuestion->id)
@@ -281,52 +260,6 @@ class QuizController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while loading question'
-            ], 500);
-        }
-    }
-
-    /**
-     * Check test status for partial updates
-     */
-    public function checkTestStatus(Request $request)
-    {
-        try {
-            $user = Auth::user();
-            $currentTest = Test::latest()->first();
-
-            $response = [
-                'has_test' => false,
-                'test_status' => null,
-                'user_ready' => false,
-                'has_question' => false,
-                'question_id' => null,
-                'exam_ended' => false,
-                'redirect_url' => null,
-            ];
-
-            if ($currentTest) {
-                $response['has_test'] = true;
-                $response['test_status'] = $currentTest->status;
-                $response['user_ready'] = $currentTest->isUserReady($user->id);
-
-                if ($currentTest->status === 'ended') {
-                    $response['exam_ended'] = true;
-                    $response['redirect_url'] = route('dashboard');
-                } elseif ($currentTest->status === 'active') {
-                    if ($currentTest->currentQuestion) {
-                        $response['has_question'] = true;
-                        $response['question_id'] = $currentTest->currentQuestion->id;
-                    }
-                }
-            }
-
-            return response()->json($response);
-
-        } catch (\Exception $e) {
-            \Log::error('Error in checkTestStatus: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred'
             ], 500);
         }
     }

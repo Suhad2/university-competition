@@ -52,5 +52,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/exam-manager/next-question', [ExamManagerController::class, 'nextQuestion'])->name('exam-manager.next-question');
         Route::post('/exam-manager/end-test', [ExamManagerController::class, 'endTest'])->name('exam-manager.end-test');
         Route::get('/exam-manager/users-status', [ExamManagerController::class, 'showUsersStatus'])->name('exam-manager.users-status');
+   
+   
     });
 });

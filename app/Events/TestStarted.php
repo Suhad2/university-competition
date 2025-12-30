@@ -7,24 +7,28 @@ use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
-class TestEnded implements ShouldBroadcast
+class TestStarted implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $test;
-    public $redirectUrl;
+    public $message;
+    public $readyCount;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(Test $test, string $redirectUrl = '/scoreboard')
+    public function __construct(Test $test, string $message, int $readyCount = 0)
     {
         $this->test = $test;
-        $this->redirectUrl = $redirectUrl;
+        $this->message = $message;
+        $this->readyCount = $readyCount;
     }
 
     /**
@@ -32,6 +36,7 @@ class TestEnded implements ShouldBroadcast
      */
     public function broadcastOn(): array
     {
+        Log::info('TestStarted event broadcasting on channel: quiz-participants');
         return [
             new Channel('quiz-participants'),
         ];
@@ -42,7 +47,7 @@ class TestEnded implements ShouldBroadcast
      */
     public function broadcastAs(): string
     {
-        return 'test.ended';
+        return 'test.started';
     }
 
     /**
@@ -52,10 +57,18 @@ class TestEnded implements ShouldBroadcast
     {
         return [
             'test_id' => $this->test->id,
-            'test_status' => 'ended',
-            'redirect_url' => $this->redirectUrl,
-            'message' => 'Test has ended!',
+            'test_status' => $this->test->status,
+            'message' => $this->message,
+            'ready_count' => $this->readyCount,
             'timestamp' => now()->toIso8601String(),
         ];
+    }
+
+    /**
+     * Determine if this event should broadcast.
+     */
+    public function broadcastWhen(): bool
+    {
+        return $this->test->exists;
     }
 }

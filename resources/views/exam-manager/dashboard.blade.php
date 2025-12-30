@@ -44,12 +44,13 @@
                                 <h4>{{ $stats['waiting_users'] }}</h4>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="stat-card">
-                                <h6>Ready Participants</h6>
-                                <h4>{{ $stats['ready_participants'] }}</h4>
-                            </div>
+                     <div class="col-md-3">
+                        <div class="stat-card">
+                            <h6>Ready Participants</h6>
+                            <h4 id="ready-count">{{ $stats['ready_participants'] }}</h4>
                         </div>
+                    </div>
+
 
                     </div>
                 @else
@@ -288,10 +289,94 @@
 
 <!-- Auto-refresh script -->
 <script>
-setInterval(function() {
-    if ({{ $currentTest && $currentTest->isActive() ? 'true' : 'false' }}) {
-        location.reload();
+document.addEventListener('DOMContentLoaded', function () {
+
+    console.log('Exam Manager Dashboard loaded');
+
+    /* ===============================
+       Prevent automatic form submit
+    =============================== */
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function (e) {
+            const submitter = e.submitter;
+            if (submitter && submitter.tagName === 'BUTTON') {
+                return true; // allow normal submit
+            }
+        });
+    });
+
+    /* ===============================
+       Auto refresh logic
+    =============================== */
+    let refreshInterval = null;
+
+    function startAutoRefresh() {
+        const hasActiveTest = {{ $currentTest && $currentTest->isActive() ? 'true' : 'false' }};
+        if (hasActiveTest && !refreshInterval) {
+            console.log('Starting auto-refresh for active test');
+            refreshInterval = setInterval(function () {
+                if (hasActiveTest) {
+                    location.reload();
+                } else {
+                    stopAutoRefresh();
+                }
+            }, 10000);
+        }
     }
-}, 10000); // Refresh every 10 seconds
+
+    function stopAutoRefresh() {
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+        }
+    }
+
+
+    window.addEventListener('load', startAutoRefresh);
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+            stopAutoRefresh();
+        } else {
+            startAutoRefresh();
+        }
+    });
+
+    /* ===============================
+       🔴 Echo listener (THE FIX)
+    =============================== */
+    if (typeof Echo === 'undefined') {
+        console.error('❌ Echo is not defined yet');
+        return;
+    }
+
+    Echo.channel('quiz-participants')
+        .listen('.participant.ready', function (e) {
+            console.log('👤 Participant Ready:', e);
+
+            // تحديث العداد
+            const counter = document.getElementById('ready-count');
+            if (counter) {
+                counter.textContent = e.ready_count;
+            }
+
+            // إضافة صف جديد
+            const table = document.getElementById('participantsTable');
+            if (table) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${e.user_name}</td>
+                    <td>${e.university ?? 'N/A'}</td>
+                    <td><span class="badge bg-info">Ready</span></td>
+                    <td>-</td>
+                `;
+                table.appendChild(row);
+            }
+        });
+
+});
 </script>
+
+
 @endsection

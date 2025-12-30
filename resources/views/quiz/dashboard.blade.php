@@ -76,13 +76,14 @@ ready.</p>
 {{-- بطاقة حالة الاختبار --}}
 <div class="col-md-6">
 <div class="card bg-light">
-<div class="card-body">
+<div class="card-body" id="test-status-content">
 <h5><i class="fas fa-info-circle"></i> Test Status</h5>
 @if ($currentTest)
 {{-- حالة الانتظار --}}
 @if ($currentTest->isWaiting())
 <p class="mb-1"><span class="badge bg-warning">Waiting</span></p>
 <p class="text-muted mb-0">Test is prepared and waiting to start</p>
+<p class="mt-2"><i class="fas fa-users"></i> <span id="ready-count-display">{{ $readyCount }}</span> participants ready</p>
 @if ($isReady)
 <button class="btn btn-sm btn-success mt-2" disabled>
 <i class="fas fa-check"></i> I'm Ready!
@@ -97,11 +98,9 @@ ready.</p>
 <p class="mb-1"><span class="badge bg-success">Active</span></p>
 <p class="text-muted mb-0">Test is currently in progress</p>
 @if ($currentTest->isUserReady($user->id))
-<p class="text-success mt-2"><i class="fas fa-check-circle"></i> You are
-participating</p>
+<p class="text-success mt-2"><i class="fas fa-check-circle"></i> You are participating</p>
 @else
-<p class="text-warning mt-2"><i class="fas fa-exclamation-triangle"></i> You
-missed the start!</p>
+<p class="text-warning mt-2"><i class="fas fa-exclamation-triangle"></i> You missed the start!</p>
 @endif
 {{-- حالة انتهاء الاختبار --}}
 @elseif($currentTest->isEnded())
@@ -122,8 +121,8 @@ missed the start!</p>
 </div>
 
 {{-- زر الاستعداد للمشاركة --}}
-@if ($currentTest && $currentTest->isWaiting())
-<div class="d-grid mt-4">
+<div id="join-test-container" class="d-grid mt-4 d-none">
+
 @if ($isReady)
 <button class="btn btn-success btn-lg" disabled>
 <i class="fas fa-check"></i> You're Ready! Waiting for First Question...
@@ -136,7 +135,7 @@ missed the start!</p>
 <small class="text-muted mt-2">The question will appear automatically when the exam manager
 starts it</small>
 </div>
-@endif
+
 </div>
 </div>
 
@@ -248,558 +247,592 @@ let timeRemaining = 35;
 let timerInterval = null;
 let hasAnswered = {{ $existingAnswer ? 'true' : 'false' }};
 let selectedAnswer = null;
-let currentPollingInterval = null;
 let currentQuestionId = {{ $question ? $question->id : 'null' }};
-let partialUpdateEnabled = true; // Enable partial page updates by default
+let pusherConnected = false;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-console.log('Initializing quiz dashboard with partial updates enabled...');
-
-@if ($currentTest && $currentTest->isWaiting() && $isReady)
-// Test is waiting and user is ready - start polling for first question
-startPollingForFirstQuestion();
-@elseif ($currentTest && $currentTest->isActive() && $currentTest->isUserReady($user->id))
-@if ($existingAnswer)
-// User has already answered - show waiting screen
-showWaitingForNext();
-// Start polling for next question
-startPollingForNextQuestion();
-@else
-// Question is active - initialize timer
-initializeTimer();
-@endif
-@else
-// No active test or user not ready - start polling for test availability
-startPollingForTestAvailability();
-@endif
-
-// Additional check: Verify test status immediately to ensure question is shown
-// This handles cases where page was loaded via Dashboard link during active exam
-verifyTestStatusOnLoad();
-
-// Attach answer option click handlers
-attachAnswerOptionListeners();
+    console.log('Initializing quiz dashboard...');
+    
+    // Check Pusher connection status
+    if (window.Echo && window.Echo.connector && window.Echo.connector.pusher) {
+        console.log('Echo found, checking connection state...');
+        console.log('Current Pusher state:', window.Echo.connector.pusher.connection.state);
+        
+        // Bind to connection events
+        window.Echo.connector.pusher.connection.bind('connected', function() {
+            console.log('✓ Pusher connected successfully!');
+            console.log('Socket ID:', window.Echo.connector.pusher.connection.socket_id);
+            pusherConnected = true;
+            attachPusherListeners();
+        });
+        
+        window.Echo.connector.pusher.connection.bind('disconnected', function() {
+            console.log('Pusher disconnected');
+            pusherConnected = false;
+        });
+        
+        window.Echo.connector.pusher.connection.bind('error', function(err) {
+            console.error('Pusher connection error:', err);
+        });
+        
+        // Check current state and attach if already connected
+        const currentState = window.Echo.connector.pusher.connection.state;
+        console.log('Initial connection state:', currentState);
+        
+        if (currentState === 'connected') {
+            console.log('Already connected, attaching listeners...');
+            pusherConnected = true;
+            attachPusherListeners();
+        } else {
+            console.log('Waiting for connection... Current state:', currentState);
+        }
+    } else {
+        console.error('Echo or Pusher not found!');
+        console.log('window.Echo:', window.Echo);
+    }
+    
+    // Attach answer option click handlers
+    attachAnswerOptionListeners();
+    
+    // Initialize timer if there's already an active question
+    @if ($currentTest && $currentTest->isActive() && $question && !$existingAnswer)
+        initializeTimer();
+    @endif
+    
+    // Ensure proper initial state for waiting test
+    @if ($currentTest && $currentTest->isWaiting())
+        console.log('Test is in waiting status - ready button should be active');
+        ensureReadyButtonState();
+    @endif
 });
 
 /**
-* Verify test status on page load to ensure question is shown
-* This handles cases where user clicked Dashboard link during active exam
-*/
-async function verifyTestStatusOnLoad() {
-try {
-const response = await fetch('/quiz/realtime-status');
-const data = await response.json();
-
-console.log('Verifying test status on load:', data);
-
-// Show active exam indicator if test is active
-if (data.test_active && data.user_ready) {
-const indicator = document.getElementById('active-exam-indicator');
-const questionContainer = document.getElementById('question-container');
-
-if (indicator) {
-indicator.classList.remove('d-none');
-}
-}
-
-// If test is active with question but question container is hidden
-if (data.test_active && data.has_question && data.html) {
-const questionContainer = document.getElementById('question-container');
-const waitingContainer = document.getElementById('waiting-container');
-
-// If question container is hidden (has d-none class), update it
-if (questionContainer && questionContainer.classList.contains('d-none')) {
-console.log('Question was hidden, updating...');
-updateQuestionContainerPartial(data);
-}
-}
-
-// If test is active but we don't have question data in initial render
-// start polling to get the question
-if (data.test_active && data.user_ready && !data.has_question && data.current_question_id) {
-// There's a question but we didn't get HTML, start polling
-console.log('Test active but no question HTML, starting polling...');
-startPollingForFirstQuestion();
-}
-} catch (error) {
-console.error('Error verifying test status on load:', error);
-}
-}
-
-/**
-* Scroll to question container
-*/
-function scrollToQuestion() {
-const questionContainer = document.getElementById('question-container');
-if (questionContainer) {
-questionContainer.scrollIntoView({ behavior: 'smooth' });
-questionContainer.classList.remove('d-none');
-
-// If question container has no content, trigger an update
-const timerElement = questionContainer.querySelector('#timer');
-if (!timerElement) {
-verifyTestStatusOnLoad();
-}
-}
+ * Attach Pusher event listeners
+ */
+function attachPusherListeners() {
+    if (!window.Echo) {
+        console.error('Echo not available');
+        return;
+    }
+    
+    console.log('Subscribing to quiz-participants channel...');
+    
+    const channel = Echo.channel('quiz-participants');
+    
+    // Global event catcher - logs ALL events
+    channel.subscribed(function() {
+        console.log('✓ Successfully subscribed to quiz-participants channel');
+        console.log('Channel object:', channel);
+    }).error(function(error) {
+        console.error('Error subscribing to channel:', error);
+    });
+    
+    // Listen for ALL events (catch-all)
+    channel.listen('*', function(e) {
+        console.log('🎯 EVENT RECEIVED (catch-all):', e);
+        console.log('Event name:', e.event);
+        console.log('Event data:', e.data);
+    });
+    
+    // Specific event listeners
+    channel.listen('.test.started', function(e) {
+        console.log('✅ Test started event received:', e);
+        handleTestStarted(e);
+    });
+    
+    channel.listen('.question.started', function(e) {
+        console.log('✅ Question started event received:', e);
+        handleQuestionStarted(e);
+    });
+    
+    channel.listen('.test.ended', function(e) {
+        console.log('✅ Test ended event received:', e);
+        handleTestEnded(e);
+    });
+     // Listen for participant.ready event
+    channel.listen('.participant.ready', function(e) {
+        console.log('✅ Participant ready event received:', e);
+        handleParticipantReady(e);
+    });
+    console.log('✓ Now listening for events on quiz-participants channel');
 }
 
 /**
-* Poll for first question when test is in waiting status
-* Uses partial page update instead of full reload
-*/
-function startPollingForFirstQuestion() {
-console.log('Starting poll for first question with partial updates...');
-
-currentPollingInterval = setInterval(async function() {
-try {
-const response = await fetch('/quiz/realtime-status');
-const data = await response.json();
-
-console.log('Checking for first question:', data);
-
-// Check for test ended
-if (data.exam_ended) {
-clearInterval(currentPollingInterval);
-if (data.redirect_url) {
-window.location.href = data.redirect_url;
-} else {
-location.reload();
-}
-return;
-}
-
-// Check for active question with HTML (user hasn't answered yet)
-if (data.test_active && data.has_question && data.html) {
-console.log('First question detected! Updating page partially...');
-clearInterval(currentPollingInterval);
-updateQuestionContainerPartial(data);
-}
-
-// Also check ready count update
-if (data.test_waiting && data.ready_count !== undefined) {
-updateReadyCountDisplay(data.ready_count);
-}
-
-} catch (error) {
-console.error('Error polling for first question:', error);
-}
-}, 1000);
+ * Ensure the ready button is in the correct state
+ */
+function ensureReadyButtonState() {
+    const readyButtons = document.querySelectorAll('[onclick="markAsReady()"]');
+    readyButtons.forEach(btn => {
+        @if (!$isReady)
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-hand-paper"></i> I\'m Ready to Participate';
+        btn.classList.add('btn-warning');
+        btn.classList.remove('btn-success', 'disabled');
+        @endif
+    });
 }
 
 /**
-* Poll for next question after answering current question
-* Uses partial page update instead of full reload
-*/
-function startPollingForNextQuestion() {
-console.log('Starting poll for next question with partial updates...');
+ * Handle test started event
+ */
+function handleTestStarted(event) {
+    showNotification('Test is Ready! Waiting for participants...');
 
-currentPollingInterval = setInterval(async function() {
-try {
-const response = await fetch('/quiz/realtime-status');
-const data = await response.json();
+    // إظهار زر المشاركة
+    const joinContainer = document.getElementById('join-test-container');
+    if (joinContainer) {
+        joinContainer.classList.remove('d-none');
+    }
 
-console.log('Checking for next question:', data);
+    // إظهار حاوية الانتظار
+    const waitingContainer = document.getElementById('waiting-container');
+    if (waitingContainer) {
+        waitingContainer.classList.remove('d-none');
+    }
 
-// Check for test ended
-if (data.exam_ended) {
-clearInterval(currentPollingInterval);
-if (data.redirect_url) {
-window.location.href = data.redirect_url;
-} else {
-location.reload();
-}
-return;
-}
-
-// Check for new question
-if (data.has_question && data.html && data.question_data) {
-const newQuestionId = data.question_data.id;
-
-if (newQuestionId !== currentQuestionId) {
-console.log('New question detected! Updating page partially...');
-updateQuestionContainerPartial(data);
-}
-}
-
-} catch (error) {
-console.error('Error polling for next question:', error);
-}
-}, 1000);
+    updateTestStatusToWaiting();
+    setTimeout(hideNotification, 3000);
 }
 
 /**
-* Poll for test availability when no test is active
-* Uses partial page update for status changes
-*/
-function startPollingForTestAvailability() {
-console.log('Starting poll for test availability with partial updates...');
-
-currentPollingInterval = setInterval(async function() {
-try {
-const response = await fetch('/quiz/realtime-status');
-const data = await response.json();
-
-console.log('Checking test availability:', data);
-
-// Test became available with waiting status
-if (data.test_waiting && data.user_is_ready) {
-console.log('Test available and user ready! Updating partial...');
-updateWaitingStatusPartial(data);
-clearInterval(currentPollingInterval);
-startPollingForFirstQuestion();
+ * Handle participant ready event
+ */
+function handleParticipantReady(event) {
+    console.log('Participant ready:', event);
+    
+    // Update the ready count display
+    const readyCountElement = document.getElementById('ready-count-display');
+    if (readyCountElement && event.ready_count !== undefined) {
+        readyCountElement.textContent = event.ready_count;
+    }
+    
+    // Update ready count in the main waiting message if exists
+    const waitingMessageCount = document.querySelector('.lead');
+    if (waitingMessageCount && event.ready_count !== undefined) {
+        // Find and update the count in the text
+        const text = waitingMessageCount.textContent;
+        const countMatch = text.match(/\d+\s+participants/);
+        if (countMatch) {
+            waitingMessageCount.textContent = text.replace(/\d+\s+participants/, event.ready_count + ' participants');
+        }
+    }
+    
+    // Show notification about new participant
+    if (event.user_name) {
+        showNotification(event.user_name + ' is ready to participate!');
+        setTimeout(hideNotification, 3000);
+    }
 }
-// Test became active with question
-else if (data.test_active && data.has_question && data.html) {
-console.log('Test active with question! Updating partial...');
-updateQuestionContainerPartial(data);
-clearInterval(currentPollingInterval);
-}
-// Test ended
-else if (data.exam_ended) {
-console.log('Test ended!');
-clearInterval(currentPollingInterval);
-if (data.redirect_url) {
-window.location.href = data.redirect_url;
-} else {
-location.reload();
-}
-}
-// Update ready count if visible
-if (data.test_waiting && data.ready_count !== undefined) {
-updateReadyCountDisplay(data.ready_count);
-}
-
-} catch (error) {
-console.error('Error polling for test availability:', error);
-}
-}, 1500);
+/**
+ * Handle question started event
+ */
+function handleQuestionStarted(event) {
+    showNotification('New question received!');
+    
+    const question = event.question || event.data?.question;
+    const questionStartTime = event.question_start_time || event.data?.question_start_time;
+    const timeLimit = event.time_limit || event.data?.time_limit || 35;
+    
+    if (!question) {
+        console.error('No question data in event');
+        return;
+    }
+    
+    // Hide waiting containers
+    document.getElementById('waiting-container')?.classList.add('d-none');
+    document.getElementById('waiting-for-next-container')?.classList.add('d-none');
+    
+    // Update question container with new question data
+    updateQuestionContainer(question, questionStartTime, timeLimit);
+    
+    // Update test status section
+    updateTestStatusToActive();
+    
+    setTimeout(hideNotification, 3000);
 }
 
 /**
-* Update question container using partial page update
-* Replaces question container HTML without full page reload
-*/
-function updateQuestionContainerPartial(data) {
-console.log('Updating question container partially...');
-
-// Hide other containers
-document.getElementById('waiting-container')?.classList.add('d-none');
-document.getElementById('waiting-for-next-container')?.classList.add('d-none');
-
-// Get the main container
-const mainContainer = document.querySelector('.col-md-8');
-
-if (mainContainer && data.html) {
-// Replace the question container content
-const questionContainer = document.getElementById('question-container');
-if (questionContainer) {
-questionContainer.innerHTML = data.html;
-// CRITICAL: Remove d-none class to make question visible
-questionContainer.classList.remove('d-none');
-} else {
-// If question container doesn't exist, add it
-mainContainer.innerHTML = data.html;
-// Show the newly added question container
-const newQuestionContainer = document.getElementById('question-container');
-if (newQuestionContainer) {
-newQuestionContainer.classList.remove('d-none');
-}
-}
-
-// Update current question ID
-if (data.question_data) {
-currentQuestionId = data.question_data.id;
-}
-
-// Reset state
-hasAnswered = false;
-selectedAnswer = null;
-timeRemaining = 35;
-
-// Initialize timer for new question
-initializeTimer();
-
-// Re-attach answer option click handlers
-attachAnswerOptionListeners();
-
-console.log('Question container updated successfully');
-} else {
-// Fallback to full reload if partial update fails
-console.log('Partial update failed, falling back to full reload...');
-location.reload();
-}
+ * Handle test ended event
+ */
+function handleTestEnded(event) {
+    showNotification('Test has ended!');
+    
+    // Clear timer
+    if (timerInterval) {
+        clearInterval(timerInterval);
+    }
+    
+    // Hide question container
+    document.getElementById('question-container')?.classList.add('d-none');
+    
+    // Show waiting container with ended status
+    const waitingContainer = document.getElementById('waiting-container');
+    if (waitingContainer) {
+        waitingContainer.classList.remove('d-none');
+        const cardBody = waitingContainer.querySelector('.card-body');
+        if (cardBody) {
+            const redirectUrl = event.redirect_url || event.data?.redirect_url || '/scoreboard';
+            cardBody.innerHTML = `
+                <div class="mb-4">
+                    <i class="fas fa-trophy fa-3x text-success mb-3"></i>
+                    <h3>Test Completed!</h3>
+                    <p class="lead">Thank you for participating.</p>
+                    <a href="${redirectUrl}" class="btn btn-success btn-lg">
+                        <i class="fas fa-trophy"></i> View Results
+                    </a>
+                </div>
+            `;
+        }
+    }
+    
+    setTimeout(hideNotification, 3000);
 }
 
 /**
-* Update waiting status using partial page update
-*/
-function updateWaitingStatusPartial(data) {
-console.log('Updating waiting status partially...');
-
-const waitingContainer = document.getElementById('waiting-container');
-if (waitingContainer) {
-waitingContainer.classList.remove('d-none');
-}
-
-// Update ready count if visible
-if (data.ready_count !== undefined) {
-updateReadyCountDisplay(data.ready_count);
-}
+ * Show notification to user
+ */
+function showNotification(message) {
+    const notification = document.getElementById('update-notification');
+    const notificationMessage = document.getElementById('notification-message');
+    
+    if (notification && notificationMessage) {
+        notificationMessage.textContent = message;
+        notification.classList.remove('d-none');
+    }
 }
 
 /**
-* Update ready count display
-*/
-function updateReadyCountDisplay(count) {
-const readyCountElement = document.querySelector('#ready-count');
-if (readyCountElement) {
-readyCountElement.textContent = count;
-}
-}
-
-/**
-* Attach click handlers to answer options
-*/
-function attachAnswerOptionListeners() {
-document.querySelectorAll('.answer-option').forEach(option => {
-option.addEventListener('click', function() {
-// Prevent selection if user has answered or time is up
-if (hasAnswered || timeRemaining <= 0) return;
-
-// Remove previous selections
-document.querySelectorAll('.answer-option').forEach(opt => {
-opt.classList.remove('selected');
-});
-
-// Add selection to clicked option
-this.classList.add('selected');
-
-// Store selected answer
-selectedAnswer = this.dataset.answer;
-});
-});
+ * Hide notification
+ */
+function hideNotification() {
+    const notification = document.getElementById('update-notification');
+    if (notification) {
+        notification.classList.add('d-none');
+    }
 }
 
 /**
-* Show waiting for next question screen
-*/
-function showWaitingForNext() {
-document.getElementById('waiting-container')?.classList.add('d-none');
-document.getElementById('question-container')?.classList.add('d-none');
-document.getElementById('waiting-for-next-container')?.classList.remove('d-none');
+ * Update question container with new question data (PARTIAL UPDATE)
+ */
+function updateQuestionContainer(question, questionStartTime, timeLimit) {
+    const questionContainer = document.getElementById('question-container');
+    const questionTitle = document.getElementById('question-title');
+    const optionA = document.getElementById('option-a');
+    const optionB = document.getElementById('option-b');
+    const optionC = document.getElementById('option-c');
+    const optionD = document.getElementById('option-d');
+    const questionIdInput = document.getElementById('questionId');
+    const startTimeInput = document.getElementById('startTime');
+    const timeLimitInput = document.getElementById('timeLimit');
+    const hasAnsweredInput = document.getElementById('hasAnswered');
+    const currentQuestionIdInput = document.getElementById('currentQuestionId');
+    
+    // Update question content
+    if (questionTitle) questionTitle.textContent = question.title;
+    if (optionA) optionA.textContent = question.option_a;
+    if (optionB) optionB.textContent = question.option_b;
+    if (optionC) optionC.textContent = question.option_c;
+    if (optionD) optionD.textContent = question.option_d;
+    
+    // Update hidden fields
+    if (questionIdInput) questionIdInput.value = question.id;
+    if (startTimeInput) startTimeInput.value = questionStartTime || Date.now();
+    if (timeLimitInput) timeLimitInput.value = timeLimit || 35;
+    if (hasAnsweredInput) hasAnsweredInput.value = 'false';
+    if (currentQuestionIdInput) currentQuestionIdInput.value = question.id;
+    
+    // Show question container
+    if (questionContainer) {
+        questionContainer.classList.remove('d-none');
+    }
+    
+    // Reset state
+    hasAnswered = false;
+    selectedAnswer = null;
+    currentQuestionId = question.id;
+    timeRemaining = timeLimit || 35;
+    
+    // Initialize timer
+    initializeTimer();
+    
+    // Re-attach answer option click handlers
+    attachAnswerOptionListeners();
 }
 
 /**
-* Initialize timer based on server time
-*/
-function initializeTimer() {
-const startTimeEl = document.getElementById('startTime');
-const timeLimitEl = document.getElementById('timeLimit');
-
-if (!startTimeEl || !timeLimitEl) {
-console.error('Timer elements not found');
-return;
-}
-
-const startTime = parseInt(startTimeEl.value);
-const timeLimit = parseInt(timeLimitEl.value);
-const currentTime = Math.floor(Date.now() / 1000);
-
-// Calculate remaining time from server timestamp
-const elapsed = currentTime - startTime;
-const calculatedRemaining = timeLimit - elapsed;
-
-// Use calculated remaining time with validation
-if (calculatedRemaining > 0 && calculatedRemaining <= timeLimit) {
-timeRemaining = calculatedRemaining;
-} else if (calculatedRemaining <= 0) {
-timeRemaining = 0;
-} else {
-timeRemaining = parseInt(timeLimitEl.value);
-}
-
-// Ensure remaining time doesn't exceed limit
-if (timeRemaining > timeLimit) {
-timeRemaining = timeLimit;
-}
-
-// Update display immediately
-const timerElement = document.getElementById('timer');
-if (timerElement) {
-timerElement.textContent = timeRemaining + 's';
-timerElement.className = 'timer-display bg-warning';
-}
-
-// Start countdown
-if (timerInterval) {
-clearInterval(timerInterval);
-}
-
-timerInterval = setInterval(function() {
-timeRemaining--;
-
-// Time's up
-if (timeRemaining <= 0) {
-if (timerElement) {
-timerElement.textContent = '0s';
-timerElement.className = 'timer-display bg-danger';
-}
-clearInterval(timerInterval);
-disableAnswers();
-return;
-}
-
-if (timerElement) {
-timerElement.textContent = timeRemaining + 's';
-
-// Change color based on remaining time
-if (timeRemaining <= 5) {
-timerElement.className = 'timer-display bg-danger';
-} else if (timeRemaining <= 10) {
-timerElement.className = 'timer-display bg-warning';
-}
-}
-}, 1000);
+ * Update test status section to waiting
+ */
+function updateTestStatusToWaiting() {
+    const statusContent = document.getElementById('test-status-content');
+    if (!statusContent) return;
+    
+    statusContent.innerHTML = `
+        <p class="mb-1"><span class="badge bg-warning">Waiting</span></p>
+        <p class="text-muted mb-0">Test is prepared and waiting to start</p>
+    `;
 }
 
 /**
-* Disable answer selection
-*/
-function disableAnswers() {
-document.querySelectorAll('.answer-option').forEach(option => {
-option.style.pointerEvents = 'none';
-option.classList.add('disabled');
-});
-
-const submitBtn = document.getElementById('submitAnswerBtn');
-if (submitBtn) {
-submitBtn.style.display = 'none';
-}
-
-hasAnswered = true;
-
-const hasAnsweredEl = document.getElementById('hasAnswered');
-if (hasAnsweredEl) {
-hasAnsweredEl.value = 'true';
-}
+ * Update test status section to active
+ */
+function updateTestStatusToActive() {
+    const statusContent = document.getElementById('test-status-content');
+    if (!statusContent) return;
+    
+    statusContent.innerHTML = `
+        <p class="mb-1"><span class="badge bg-success">Active</span></p>
+        <p class="text-muted mb-0">Test is currently in progress</p>
+        <p class="text-success mt-2"><i class="fas fa-check-circle"></i> You are participating</p>
+    `;
 }
 
 /**
-* Mark user as ready to participate
-*/
+ * Mark user as ready to participate
+ */
 function markAsReady() {
-if (!confirm('Are you ready to participate in this test? Make sure to stay on this page until the test ends.')) {
-return;
-}
-
-console.log('Marking user as ready...');
-
-fetch('{{ route('quiz.mark-ready') }}', {
-method: 'POST',
-headers: {
-'X-CSRF-TOKEN': '{{ csrf_token() }}',
-'Content-Type': 'application/json',
-},
-})
-.then(response => response.json())
-.then(data => {
-console.log('Response data:', data);
-if (data.success) {
-// Stop current polling
-if (currentPollingInterval) {
-clearInterval(currentPollingInterval);
-}
-
-// Update UI to show ready status
-updateReadyButtonPartial(data);
-
-// Start polling for first question
-startPollingForFirstQuestion();
-} else {
-alert(data.error || 'An error occurred. Please try again.');
-}
-})
-.catch(error => {
-console.error('Error:', error);
-alert('An error occurred. Please try again.');
-});
-}
-
-/**
-* Update ready button using partial update
-*/
-function updateReadyButtonPartial(data) {
-// Update ready count if visible
-updateReadyCountDisplay(data.ready_count);
-
-// Update ready button state
-const readyBtn = document.querySelector('.btn-warning');
-if (readyBtn) {
-readyBtn.classList.remove('btn-warning');
-readyBtn.classList.add('btn-success');
-readyBtn.disabled = true;
-readyBtn.innerHTML = '<i class="fas fa-check"></i> You\'re Ready!';
-
-// Also update large button if exists
-const largeReadyBtn = document.querySelector('.d-grid .btn-warning');
-if (largeReadyBtn) {
-largeReadyBtn.classList.remove('btn-warning');
-largeReadyBtn.classList.add('btn-success');
-largeReadyBtn.disabled = true;
-largeReadyBtn.innerHTML = '<i class="fas fa-check"></i> You\'re Ready! Waiting for First Question...';
-}
-}
+    const btn = event.target;
+    if (btn.disabled) return;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+    
+    fetch('/quiz/mark-ready', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('You are ready to participate! Waiting for the first question...');
+            
+            // Update button state
+            btn.innerHTML = '<i class="fas fa-check"></i> You\'re Ready! Waiting for First Question...';
+            btn.classList.remove('btn-warning');
+            btn.classList.add('btn-success');
+            
+            // Update ready count display if exists
+            const readyCountElement = document.getElementById('ready-count-display');
+            if (readyCountElement && data.readyCount !== undefined) {
+                readyCountElement.textContent = data.readyCount;
+            }
+            
+            // Update the test status section to show user is ready
+            updateReadyStatusDisplay();
+        } else {
+            showNotification(data.error || 'Error marking as ready');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-hand-paper"></i> I\'m Ready to Participate';
+        }
+    })
+    .catch(error => {
+        console.error('Error marking as ready:', error);
+        showNotification('An error occurred. Please try again.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-hand-paper"></i> I\'m Ready to Participate';
+    });
 }
 
 /**
-* Submit answer to server
-*/
+ * Update the ready status display in the test status section
+ */
+function updateReadyStatusDisplay() {
+    // Find and update any ready status indicators
+    const readyBadges = document.querySelectorAll('.ready-badge');
+    readyBadges.forEach(badge => {
+        badge.textContent = 'Ready';
+        badge.classList.remove('bg-warning');
+        badge.classList.add('bg-success');
+    });
+}
+
+/**
+ * Submit the selected answer
+ */
 function submitAnswer() {
-if (!selectedAnswer) {
-showStatus('Please select an answer first!', 'warning');
-return;
-}
-
-const formData = new FormData();
-formData.append('selected_answer', selectedAnswer);
-formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
-
-fetch('/quiz/answer', {
-method: 'POST',
-body: formData
-})
-.then(response => response.json())
-.then(data => {
-if (data.success) {
-// Disable answers and hide submit button
-disableAnswers();
-
-// Hide question container and show waiting for next
-document.getElementById('question-container')?.classList.add('d-none');
-document.getElementById('waiting-for-next-container')?.classList.remove('d-none');
-
-// Start polling for next question
-startPollingForNextQuestion();
-} else {
-showStatus(data.error || 'Error submitting answer', 'error');
-}
-})
-.catch(error => {
-console.error('Error:', error);
-showStatus('Error submitting answer', 'error');
-});
+    if (!selectedAnswer) {
+        showNotification('Please select an answer first!');
+        return;
+    }
+    
+    const questionId = document.getElementById('questionId')?.value;
+    const submitBtn = document.getElementById('submitAnswerBtn');
+    
+    if (!questionId) {
+        showNotification('No question found!');
+        return;
+    }
+    
+    // Disable button to prevent double submission
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Submitting...';
+    
+    fetch('/quiz/submit-answer', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            selected_answer: selectedAnswer,
+            question_id: questionId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Answer submitted successfully!');
+            
+            // Mark as answered locally
+            hasAnswered = true;
+            const hasAnsweredInput = document.getElementById('hasAnswered');
+            if (hasAnsweredInput) {
+                hasAnsweredInput.value = 'true';
+            }
+            
+            // Clear timer
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            // Show waiting container
+            document.getElementById('question-container')?.classList.add('d-none');
+            document.getElementById('waiting-for-next-container')?.classList.remove('d-none');
+            
+            // Update status message
+            const statusMessage = document.getElementById('statusMessage');
+            if (statusMessage) {
+                statusMessage.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle"></i> Answer submitted!</div>';
+            }
+        } else {
+            showNotification(data.error || 'Error submitting answer');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> Submit Answer';
+        }
+    })
+    .catch(error => {
+        console.error('Error submitting answer:', error);
+        showNotification('An error occurred. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-check"></i> Submit Answer';
+    });
 }
 
 /**
-* Show status message to user
-*/
-function showStatus(message, type) {
-const statusElement = document.getElementById('statusMessage');
-if (statusElement) {
-const alertClass = type === 'warning' ? 'warning' : (type === 'success' ? 'success' : 'danger');
-statusElement.innerHTML = `<div class="alert alert-${alertClass}">${message}</div>`;
+ * Initialize the countdown timer
+ */
+function initializeTimer() {
+    const timerElement = document.getElementById('timer');
+    const startTimeInput = document.getElementById('startTime');
+    const timeLimitInput = document.getElementById('timeLimit');
+    
+    if (!timerElement) return;
+    
+    let timeLimit = parseInt(timeLimitInput?.value) || 35;
+    let startTime = parseInt(startTimeInput?.value);
+    
+    // Calculate remaining time based on start time
+    if (startTime) {
+        const elapsed = Math.floor((Date.now() / 1000) - startTime);
+        timeRemaining = Math.max(0, timeLimit - elapsed);
+    } else {
+        timeRemaining = timeLimit;
+    }
+    
+    // Update timer display
+    timerElement.textContent = timeRemaining + 's';
+    
+    // Clear any existing timer
+    if (timerInterval) {
+        clearInterval(timerInterval);
+    }
+    
+    // Start countdown
+    timerInterval = setInterval(() => {
+        timeRemaining--;
+        timerElement.textContent = timeRemaining + 's';
+        
+        // Change color when time is low
+        if (timeRemaining <= 10) {
+            timerElement.style.color = '#dc3545'; // Red
+        } else if (timeRemaining <= 20) {
+            timerElement.style.color = '#ffc107'; // Yellow
+        }
+        
+        if (timeRemaining <= 0) {
+            clearInterval(timerInterval);
+            timerElement.textContent = '0s';
+            handleTimeUp();
+        }
+    }, 1000);
 }
+
+/**
+ * Handle timer running out
+ */
+function handleTimeUp() {
+    showNotification('Time is up!');
+    
+    // Disable answer options
+    const options = document.querySelectorAll('.answer-option');
+    options.forEach(option => {
+        option.style.pointerEvents = 'none';
+        option.style.opacity = '0.6';
+    });
+    
+    // Disable submit button
+    const submitBtn = document.getElementById('submitAnswerBtn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-clock"></i> Time\'s Up';
+    }
+    
+    // If no answer selected, show waiting
+    if (!selectedAnswer && !hasAnswered) {
+        document.getElementById('question-container')?.classList.add('d-none');
+        document.getElementById('waiting-for-next-container')?.classList.remove('d-none');
+    }
+}
+
+/**
+ * Attach click event listeners to answer options
+ */
+function attachAnswerOptionListeners() {
+    const options = document.querySelectorAll('.answer-option');
+    
+    options.forEach(option => {
+        option.onclick = function() {
+            if (hasAnswered) return;
+            
+            // Remove selected class from all options
+            options.forEach(opt => opt.classList.remove('selected'));
+            
+            // Add selected class to clicked option
+            this.classList.add('selected');
+            
+            // Store selected answer
+            selectedAnswer = this.dataset.answer;
+            
+            // Enable submit button
+            const submitBtn = document.getElementById('submitAnswerBtn');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+            }
+        };
+    });
+}
+
+/**
+ * Scroll to question section
+ */
+function scrollToQuestion() {
+    const questionContainer = document.getElementById('question-container');
+    if (questionContainer) {
+        questionContainer.scrollIntoView({ behavior: 'smooth' });
+    }
 }
 </script>
 @endsection
