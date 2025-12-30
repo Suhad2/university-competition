@@ -522,6 +522,12 @@ function updateQuestionContainer(question, questionStartTime, timeLimit) {
     // Show container
     questionContainer.classList.remove('d-none');
 
+       // Clear any previous status messages
+    const statusMessage = document.getElementById('statusMessage');
+    if (statusMessage) {
+        statusMessage.innerHTML = '';
+    }
+
     // Update question text
     const questionTitle = questionContainer.querySelector('.question-content h4');
     if (questionTitle) questionTitle.textContent = question.title;
@@ -688,7 +694,7 @@ function submitAnswer() {
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Submitting...';
     
-    fetch('/quiz/submit-answer', {
+    fetch('/quiz/answer', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -699,10 +705,15 @@ function submitAnswer() {
             question_id: questionId
         })
     })
-    .then(response => response.json())
+     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showNotification('Answer submitted successfully!');
+            // عرض رسالة النجاح في منطقة الرسائل
+            const statusMessage = document.getElementById('statusMessage');
+            if (statusMessage) {
+                statusMessage.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle"></i> Answer submitted successfully!</div>';
+            }
+            
             
             // Mark as answered locally
             hasAnswered = true;
@@ -716,15 +727,11 @@ function submitAnswer() {
                 clearInterval(timerInterval);
             }
             
-            // Show waiting container
+                  // Hide question container and show waiting container
             document.getElementById('question-container')?.classList.add('d-none');
             document.getElementById('waiting-for-next-container')?.classList.remove('d-none');
             
-            // Update status message
-            const statusMessage = document.getElementById('statusMessage');
-            if (statusMessage) {
-                statusMessage.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle"></i> Answer submitted!</div>';
-            }
+          
         } else {
             showNotification(data.error || 'Error submitting answer');
             submitBtn.disabled = false;
@@ -792,7 +799,11 @@ function initializeTimer() {
  * Handle timer running out
  */
 function handleTimeUp() {
-    showNotification('Time is up!');
+    // عرض رسالة انتهاء الوقت الصحيحة
+    const statusMessage = document.getElementById('statusMessage');
+    if (statusMessage) {
+        statusMessage.innerHTML = '<div class="alert alert-danger"><i class="fas fa-times-circle"></i> Time\'s up! You can\'t answer anymore</div>';
+    }
     
     // Disable answer options
     const options = document.querySelectorAll('.answer-option');
@@ -808,13 +819,14 @@ function handleTimeUp() {
         submitBtn.innerHTML = '<i class="fas fa-clock"></i> Time\'s Up';
     }
     
-    // If no answer selected, show waiting
+ 
+    // إذا لم يتم إرسال إجابة، نعرض رسالة انتهاء الوقت بدلاً من "Answer Submitted!"
     if (!selectedAnswer && !hasAnswered) {
-        document.getElementById('question-container')?.classList.add('d-none');
-        document.getElementById('waiting-for-next-container')?.classList.remove('d-none');
+        // لا نُظهر حاوية "waiting-for-next-container" هنا
+        // لأن المستخدم لم يُرسل إجابة
+        console.log('Time expired without answer submission');
     }
 }
-
 /**
  * Attach click event listeners to answer options
  */
