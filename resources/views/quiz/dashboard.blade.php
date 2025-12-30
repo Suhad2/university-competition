@@ -177,7 +177,7 @@ starts it</small>
 <div class="answer-option" data-answer="A">
 <div class="d-flex align-items-center">
 <span class="badge bg-primary me-3" style="font-size: 1.2rem;">A</span>
-<span>{{ $question ? $question->option_a : '...' }}</span>
+<span id="option-a">{{ $question ? $question->option_a : '...' }}</span>
 </div>
 </div>
 </div>
@@ -186,7 +186,7 @@ starts it</small>
 <div class="answer-option" data-answer="B">
 <div class="d-flex align-items-center">
 <span class="badge bg-primary me-3" style="font-size: 1.2rem;">B</span>
-<span>{{ $question ? $question->option_b : '...' }}</span>
+<span id="option-b">{{ $question ? $question->option_b : '...' }}</span>
 </div>
 </div>
 </div>
@@ -197,7 +197,7 @@ starts it</small>
 <div class="answer-option" data-answer="C">
 <div class="d-flex align-items-center">
 <span class="badge bg-primary me-3" style="font-size: 1.2rem;">C</span>
-<span>{{ $question ? $question->option_c : '...' }}</span>
+<span id="option-c">{{ $question ? $question->option_c : '...' }}</span>
 </div>
 </div>
 </div>
@@ -206,7 +206,7 @@ starts it</small>
 <div class="answer-option" data-answer="D">
 <div class="d-flex align-items-center">
 <span class="badge bg-primary me-3" style="font-size: 1.2rem;">D</span>
-<span>{{ $question ? $question->option_d : '...' }}</span>
+<span id="option-d" >{{ $question ? $question->option_d : '...' }}</span>
 </div>
 </div>
 </div>
@@ -425,30 +425,30 @@ function handleParticipantReady(event) {
     }
 }
 /**
- * Handle question started event
+ * Handle question started event (improved)
  */
 function handleQuestionStarted(event) {
     showNotification('New question received!');
-    
+
     const question = event.question || event.data?.question;
-    const questionStartTime = event.question_start_time || event.data?.question_start_time;
+    const questionStartTime = event.question_start_time || event.data?.question_start_time || Math.floor(Date.now()/1000);
     const timeLimit = event.time_limit || event.data?.time_limit || 35;
-    
+
     if (!question) {
         console.error('No question data in event');
         return;
     }
-    
+
     // Hide waiting containers
     document.getElementById('waiting-container')?.classList.add('d-none');
     document.getElementById('waiting-for-next-container')?.classList.add('d-none');
-    
-    // Update question container with new question data
+
+    // Update question container
     updateQuestionContainer(question, questionStartTime, timeLimit);
-    
+
     // Update test status section
     updateTestStatusToActive();
-    
+
     setTimeout(hideNotification, 3000);
 }
 
@@ -513,53 +513,71 @@ function hideNotification() {
 }
 
 /**
- * Update question container with new question data (PARTIAL UPDATE)
+ * Update question container with new question data
  */
 function updateQuestionContainer(question, questionStartTime, timeLimit) {
     const questionContainer = document.getElementById('question-container');
-    const questionTitle = document.getElementById('question-title');
-    const optionA = document.getElementById('option-a');
-    const optionB = document.getElementById('option-b');
-    const optionC = document.getElementById('option-c');
-    const optionD = document.getElementById('option-d');
+    if (!questionContainer) return;
+
+    // Show container
+    questionContainer.classList.remove('d-none');
+
+    // Update question text
+    const questionTitle = questionContainer.querySelector('.question-content h4');
+    if (questionTitle) questionTitle.textContent = question.title;
+
+    // Update options
+    const optionElements = {
+        A: questionContainer.querySelector('#option-a'),
+        B: questionContainer.querySelector('#option-b'),
+        C: questionContainer.querySelector('#option-c'),
+        D: questionContainer.querySelector('#option-d')
+    };
+    if (optionElements.A) optionElements.A.textContent = question.option_a;
+    if (optionElements.B) optionElements.B.textContent = question.option_b;
+    if (optionElements.C) optionElements.C.textContent = question.option_c;
+    if (optionElements.D) optionElements.D.textContent = question.option_d;
+
+    // Update hidden inputs
     const questionIdInput = document.getElementById('questionId');
+    const currentQuestionIdInput = document.getElementById('currentQuestionId');
     const startTimeInput = document.getElementById('startTime');
     const timeLimitInput = document.getElementById('timeLimit');
     const hasAnsweredInput = document.getElementById('hasAnswered');
-    const currentQuestionIdInput = document.getElementById('currentQuestionId');
-    
-    // Update question content
-    if (questionTitle) questionTitle.textContent = question.title;
-    if (optionA) optionA.textContent = question.option_a;
-    if (optionB) optionB.textContent = question.option_b;
-    if (optionC) optionC.textContent = question.option_c;
-    if (optionD) optionD.textContent = question.option_d;
-    
-    // Update hidden fields
+
     if (questionIdInput) questionIdInput.value = question.id;
-    if (startTimeInput) startTimeInput.value = questionStartTime || Date.now();
-    if (timeLimitInput) timeLimitInput.value = timeLimit || 35;
-    if (hasAnsweredInput) hasAnsweredInput.value = 'false';
     if (currentQuestionIdInput) currentQuestionIdInput.value = question.id;
-    
-    // Show question container
-    if (questionContainer) {
-        questionContainer.classList.remove('d-none');
-    }
-    
-    // Reset state
+    if (startTimeInput) startTimeInput.value = questionStartTime;
+    if (timeLimitInput) timeLimitInput.value = timeLimit;
+    if (hasAnsweredInput) hasAnsweredInput.value = 'false';
+
+    // Reset local state
     hasAnswered = false;
     selectedAnswer = null;
     currentQuestionId = question.id;
-    timeRemaining = timeLimit || 35;
-    
+    timeRemaining = timeLimit;
+
+    // Reset option styles
+    const optionDivs = questionContainer.querySelectorAll('.answer-option');
+    optionDivs.forEach(opt => {
+        opt.classList.remove('selected');
+        opt.style.pointerEvents = 'auto';
+        opt.style.opacity = '1';
+    });
+
+    // Enable submit button
+    const submitBtn = document.getElementById('submitAnswerBtn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-check"></i> Submit Answer';
+    }
+
     // Initialize timer
     initializeTimer();
-    
-    // Re-attach answer option click handlers
+
+    // Re-attach option click listeners
     attachAnswerOptionListeners();
 }
-
 /**
  * Update test status section to waiting
  */
