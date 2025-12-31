@@ -6,7 +6,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ExamManagerController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\ScoreboardController;
-
+use App\Http\Controllers\ResultsController;
 // Auth routes
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
@@ -27,7 +27,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/quiz/mark-ready', [QuizController::class, 'markAsReady'])->name('quiz.mark-ready');
     Route::get('/quiz/question-html', [QuizController::class, 'getQuestionHtml'])->name('quiz.question-html');
     Route::get('/quiz/test-status', [QuizController::class, 'checkTestStatus'])->name('quiz.test-status');
-    
+        // participant
+    Route::get('/my-results', [ResultsController::class, 'myResults'])
+        ->name('results.my');
     // Real-time scoreboard
     Route::get('/scoreboard', [ScoreboardController::class, 'showScoreboard'])->name('scoreboard');
     Route::get('/scoreboard/live', [ScoreboardController::class, 'getLiveScoreboard'])->name('scoreboard.live');
@@ -44,15 +46,36 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/admin/questions/import', [AdminController::class, 'importQuestions'])->name('admin.questions.import');
     });
     
-    // Exam Manager routes
-    Route::middleware(['role:exam_manager'])->group(function () {
-        Route::get('/exam-manager', [ExamManagerController::class, 'index'])->name('exam-manager.dashboard');
-        Route::post('/exam-manager/start-test', [ExamManagerController::class, 'startTest'])->name('exam-manager.start-test');
-        Route::post('/exam-manager/start-first-question', [ExamManagerController::class, 'startFirstQuestion'])->name('exam-manager.start-first-question');
-        Route::post('/exam-manager/next-question', [ExamManagerController::class, 'nextQuestion'])->name('exam-manager.next-question');
-        Route::post('/exam-manager/end-test', [ExamManagerController::class, 'endTest'])->name('exam-manager.end-test');
-        Route::get('/exam-manager/users-status', [ExamManagerController::class, 'showUsersStatus'])->name('exam-manager.users-status');
-   
-   
-    });
+   // Exam Manager routes
+Route::middleware(['role:exam_manager'])->group(function () {
+
+    Route::get('/exam-manager', [ExamManagerController::class, 'index'])
+        ->name('exam-manager.dashboard');
+
+    Route::post('/exam-manager/start-test', [ExamManagerController::class, 'startTest'])
+        ->name('exam-manager.start-test');
+
+    Route::post('/exam-manager/start-first-question', [ExamManagerController::class, 'startFirstQuestion'])
+        ->name('exam-manager.start-first-question');
+
+    Route::post('/exam-manager/next-question', [ExamManagerController::class, 'nextQuestion'])
+        ->name('exam-manager.next-question');
+
+    Route::post('/exam-manager/end-test', [ExamManagerController::class, 'endTest'])
+        ->name('exam-manager.end-test');
+
+    Route::get('/exam-manager/users-status', [ExamManagerController::class, 'showUsersStatus'])
+        ->name('exam-manager.users-status');
+
+    // ✅ Results routes (exam-manager only)
+    Route::get('/results/participants', [ResultsController::class, 'participants'])
+        ->name('results.participants');
+
+    Route::get('/results/participants/{user}', [ResultsController::class, 'participantDetails'])
+        ->name('results.participant.details');
+});
+    
+
+
+
 });

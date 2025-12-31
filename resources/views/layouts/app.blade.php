@@ -60,35 +60,35 @@
         .navbar-brand {
             font-weight: bold;
         }
-        
+
         /* Notification styles */
         #update-notification {
             transition: opacity 0.3s ease-in-out;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        
+
         #update-notification .btn-close {
             position: absolute;
             right: 10px;
             top: 50%;
             transform: translateY(-50%);
         }
-        
+
         /* Smooth transitions for UI elements */
         .answer-option {
             transition: all 0.2s ease-in-out;
         }
-        
+
         .answer-option.selected {
             transform: scale(1.02);
             box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
         }
-        
+
         .timer-display {
             transition: color 0.3s ease;
         }
     </style>
-    
+
     <!-- Pusher configuration -->
     <meta name="pusher-key" content="{{ env('PUSHER_APP_KEY', '17ec3014a90b3757e007') }}">
     <meta name="pusher-cluster" content="{{ env('PUSHER_APP_CLUSTER', 'mt1') }}">
@@ -162,12 +162,24 @@
                                         <i class="fas fa-play-circle"></i> Exam Manager
                                     </a>
                                 </li>
+                                {{-- Results --}}
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('results.participants') }}">
+                                        <i class="fas fa-chart-line"></i> Results
+                                    </a>
+                                </li>
 
                                 {{-- Participant --}}
                             @else
                                 <li>
                                     <a class="dropdown-item dashboard-link" href="{{ route('dashboard') }}">
                                         <i class="fas fa-user-cog"></i> Dashboard
+                                    </a>
+                                </li>
+                                {{-- Results --}}
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('results.my') }}">
+                                        <i class="fas fa-chart-line"></i> Results
                                     </a>
                                 </li>
                             @endif
@@ -216,7 +228,8 @@
         @endif
 
         <!-- Global notification container -->
-        <div id="update-notification" class="alert alert-info alert-dismissible fade show d-none" role="alert" style="position: fixed; top: 80px; right: 20px; z-index: 9999; max-width: 400px;">
+        <div id="update-notification" class="alert alert-info alert-dismissible fade show d-none" role="alert"
+            style="position: fixed; top: 80px; right: 20px; z-index: 9999; max-width: 400px;">
             <i class="fas fa-bell"></i> <span id="notification-message"></span>
             <button type="button" class="btn-close" onclick="hideNotification()"></button>
         </div>
@@ -226,32 +239,32 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    
+
     <!-- Pusher and Echo from CDN - Using stable versions -->
     <script src="https://cdn.jsdelivr.net/npm/pusher-js@7.2.0/dist/web/pusher.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.15.3/dist/echo.iife.js"></script>
-    
+
     <script>
-      
         window.Echo = new Echo({
             broadcaster: 'pusher',
-            key: document.querySelector('meta[name="pusher-key"]')?.getAttribute('content') || '17ec3014a90b3757e007',
+            key: document.querySelector('meta[name="pusher-key"]')?.getAttribute('content') ||
+                '17ec3014a90b3757e007',
             cluster: document.querySelector('meta[name="pusher-cluster"]')?.getAttribute('content') || 'mt1',
             forceTLS: true,
             enableLogging: true
         });
-        
+
         console.log('Echo initialized from CDN:', window.Echo);
-        
+
         // Global notification system
         function showNotification(message) {
             const notification = document.getElementById('update-notification');
             const notificationMessage = document.getElementById('notification-message');
-            
+
             if (notification && notificationMessage) {
                 notificationMessage.textContent = message;
                 notification.classList.remove('d-none');
-                
+
                 // Auto-hide after 5 seconds
                 setTimeout(function() {
                     hideNotification();
@@ -266,7 +279,7 @@
             }
         }
     </script>
-    
+
     @stack('scripts')
 </body>
 
