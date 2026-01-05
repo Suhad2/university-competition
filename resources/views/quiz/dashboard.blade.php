@@ -152,7 +152,7 @@ starts it</small>
 </div>
 
 <!-- حاوية السؤال - تظهر عندما يكون الاختبار نشطاً والمستخدم جاهز -->
-<div id="question-container" class="d-none">
+<div id="question-container" class="{{ ($currentTest && $currentTest->isActive() && $isReady && $question) ? '' : 'd-none' }}">
 <div class="card question-card">
 {{-- رأس بطاقة السؤال مع المؤقت --}}
 <div class="card-header bg-primary text-white">
@@ -465,6 +465,11 @@ function handleTestEnded(event) {
     
     // Hide question container
     document.getElementById('question-container')?.classList.add('d-none');
+
+
+       // Hide waiting-for-next container (Answer Submitted form)
+    document.getElementById('waiting-for-next-container')?.classList.add('d-none');
+    
     
     // Show waiting container with ended status
     const waitingContainer = document.getElementById('waiting-container');

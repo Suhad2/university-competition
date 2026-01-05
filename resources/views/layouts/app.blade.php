@@ -171,9 +171,14 @@
 
                                 {{-- Participant --}}
                             @else
+                               @php
+                                    $currentTest = \App\Models\Test::latest()->first();
+                                    $user = auth()->user();
+                                    $hasActiveTest = $currentTest && $currentTest->status === 'active' && $currentTest->isUserReady($user->id);
+                                @endphp
                                 <li>
-                                    <a class="dropdown-item dashboard-link" href="{{ route('dashboard') }}">
-                                        <i class="fas fa-user-cog"></i> Dashboard
+                                    <a class="dropdown-item dashboard-link" href="{{ $hasActiveTest ? route('quiz') : route('dashboard') }}">
+                                        <i class="fas fa-user-cog"></i> {{ $hasActiveTest ? 'Go to Questions' : 'Dashboard' }}
                                     </a>
                                 </li>
                                 {{-- Results --}}

@@ -307,76 +307,226 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     /* ===============================
-       Auto refresh logic
-    =============================== */
-    let refreshInterval = null;
-
-    function startAutoRefresh() {
-        const hasActiveTest = {{ $currentTest && $currentTest->isActive() ? 'true' : 'false' }};
-        if (hasActiveTest && !refreshInterval) {
-            console.log('Starting auto-refresh for active test');
-            refreshInterval = setInterval(function () {
-                if (hasActiveTest) {
-                    location.reload();
-                } else {
-                    stopAutoRefresh();
-                }
-            }, 10000);
-        }
-    }
-
-    function stopAutoRefresh() {
-        if (refreshInterval) {
-            clearInterval(refreshInterval);
-            refreshInterval = null;
-        }
-    }
-
-
-    window.addEventListener('load', startAutoRefresh);
-
-    document.addEventListener('visibilitychange', function () {
-        if (document.hidden) {
-            stopAutoRefresh();
-        } else {
-            startAutoRefresh();
-        }
-    });
-
-    /* ===============================
-       🔴 Echo listener (THE FIX)
+       🔴 Echo listener (MAIN UPDATE MECHANISM)
+       No more setInterval - 100% Pusher based!
     =============================== */
     if (typeof Echo === 'undefined') {
         console.error('❌ Echo is not defined yet');
         return;
     }
 
+    const channel = Echo.channel('quiz-participants');
+
+    // Log successful subscription
+    channel.subscribed(function() {
+        console.log('✓ Successfully subscribed to quiz-participants channel');
+    }).error(function(error) {
+        console.error('❌ Channel subscription error:', error);
+    });
+
+    // Listen for ALL events (catch-all for debugging)
+    channel.listen('*', function(e) {
+        console.log('🎯 EVENT RECEIVED:', e.event, e.data);
+    });
+
+    // 1. Participant Ready Event
     Echo.channel('quiz-participants')
         .listen('.participant.ready', function (e) {
             console.log('👤 Participant Ready:', e);
+            updateReadyCount(e.ready_count);
+            addParticipantRowIfNotExists(e);
+        });
 
-            // تحديث العداد
-            const counter = document.getElementById('ready-count');
-            if (counter) {
-                counter.textContent = e.ready_count;
+    // 2. Test Updated Event (MAIN EVENT FOR UPDATES)
+    Echo.channel('quiz-participants')
+        .listen('.test.updated', function (e) {
+            console.log('📊 Test Updated:', e);
+            
+            // Update ready count
+            if (e.stats && e.stats.ready_participants !== undefined) {
+                updateReadyCount(e.stats.ready_participants);
             }
-
-            // إضافة صف جديد
-            const table = document.getElementById('participantsTable');
-            if (table) {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${e.user_name}</td>
-                    <td>${e.university ?? 'N/A'}</td>
-                    <td><span class="badge bg-info">Ready</span></td>
-                    <td>-</td>
-                `;
-                table.appendChild(row);
+            
+            // Update answered questions count
+            if (e.stats && e.stats.answered_questions !== undefined) {
+                updateAnsweredCount(e.stats.answered_questions);
+            }
+            
+            // Update participants table
+            if (e.participants && Array.isArray(e.participants)) {
+                updateParticipantsTable(e.participants);
+            }
+            
+            // Update current question if changed
+            if (e.currentQuestion) {
+                updateCurrentQuestion(e.currentQuestion);
             }
         });
 
-});
-</script>
+    // 3. Answer Received Event
+    Echo.channel('quiz-participants')
+        .listen('.answer.received', function (e) {
+            console.log('✅ Answer Received:', e);
+            updateParticipantAnswer(e.userId, e.selectedAnswer);
+        });
 
+    // 4. Question Started Event
+    Echo.channel('quiz-participants')
+        .listen('.question.started', function (e) {
+            console.log('❓ Question Started:', e);
+            // Reload page to show new question (needed for full page update)
+            const hasActiveTest = {{ $currentTest && $currentTest->isActive() ? 'true' : 'false' }};
+            if (hasActiveTest && e.question) {
+                location.reload();
+            }
+        });
+
+    // 5. Test Ended Event
+    Echo.channel('quiz-participants')
+        .listen('.test.ended', function (e) {
+            console.log('🏁 Test Ended:', e);
+            showTestEndedNotification();
+        });
+
+});
+
+/**
+ * Update ready count display
+ */
+function updateReadyCount(count) {
+    const counter = document.getElementById('ready-count');
+    if (counter) {
+        counter.textContent = count;
+    }
+}
+
+/**
+ * Update answered questions count
+ */
+function updateAnsweredCount(count) {
+    const counter = document.getElementById('answered-count');
+    if (counter) {
+        counter.textContent = count;
+    }
+}
+
+/**
+ * Add participant row if not exists
+ */
+function addParticipantRowIfNotExists(eventData) {
+    const table = document.getElementById('participantsTable');
+    if (!table) return;
+
+    // Check if participant already exists
+    const existingRows = table.querySelectorAll('tr td:first-child');
+    const exists = Array.from(existingRows).some(td => td.textContent === eventData.user_name);
+    
+    if (!exists) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${eventData.user_name}</td>
+            <td>${eventData.university || 'N/A'}</td>
+            <td><span class="badge bg-info">Ready</span></td>
+            <td>-</td>
+        `;
+        table.appendChild(row);
+    }
+}
+
+/**
+ * Update entire participants table
+ */
+function updateParticipantsTable(participants) {
+    const table = document.getElementById('participantsTable');
+    if (!table) return;
+
+    const currentTest = {{ $currentTest && $currentTest->isActive() ? 'true' : 'false' }};
+    
+    table.innerHTML = '';
+    
+    participants.forEach(user => {
+        // Only show ready participants if test is waiting
+        if (!currentTest && !user.is_ready) return;
+        
+        const row = document.createElement('tr');
+        
+        let statusBadge = '';
+        if (user.has_answered) {
+            statusBadge = '<span class="badge bg-success">Answered</span>';
+        } else if (user.is_ready) {
+            statusBadge = currentTest 
+                ? '<span class="badge bg-warning">Waiting</span>'
+                : '<span class="badge bg-info">Ready</span>';
+        } else {
+            statusBadge = '<span class="badge bg-secondary">Not Ready</span>';
+        }
+        
+        row.innerHTML = `
+            <td>${user.name}</td>
+            <td>${user.university || 'N/A'}</td>
+            <td>${statusBadge}</td>
+            <td>${user.selected_answer || '-'}</td>
+        `;
+        table.appendChild(row);
+    });
+}
+
+/**
+ * Update single participant's answer
+ */
+function updateParticipantAnswer(userId, selectedAnswer) {
+    const table = document.getElementById('participantsTable');
+    if (!table) return;
+
+    const rows = table.querySelectorAll('tr');
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 4) {
+            const statusCell = cells[2];
+            const answerCell = cells[3];
+            
+            // Update status to answered
+            if (statusCell.querySelector('.badge.bg-warning')) {
+                statusCell.innerHTML = '<span class="badge bg-success">Answered</span>';
+                answerCell.textContent = selectedAnswer;
+            }
+        }
+    });
+}
+
+/**
+ * Update current question display
+ */
+function updateCurrentQuestion(question) {
+    const questionContainer = document.querySelector('.question-display');
+    if (!questionContainer) return;
+
+    const title = questionContainer.querySelector('h4');
+    if (title) title.textContent = question.title;
+
+    const options = questionContainer.querySelectorAll('.option-display span:last-child');
+    if (options.length >= 4) {
+        options[0].textContent = question.option_a;
+        options[1].textContent = question.option_b;
+        options[2].textContent = question.option_c;
+        options[3].textContent = question.option_d;
+    }
+}
+
+/**
+ * Show test ended notification
+ */
+function showTestEndedNotification() {
+    // Update UI to show test ended status
+    const statusBadges = document.querySelectorAll('.badge');
+    statusBadges.forEach(badge => {
+        if (badge.textContent === 'Active') {
+            badge.textContent = 'Ended';
+            badge.classList.remove('bg-success');
+            badge.classList.add('bg-secondary');
+        }
+    });
+}
+</script>
 
 @endsection

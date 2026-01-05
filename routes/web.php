@@ -22,11 +22,8 @@ Route::middleware(['auth'])->group(function () {
     // Quiz interface
     Route::get('/quiz', [QuizController::class, 'showQuiz'])->name('quiz');
     Route::post('/quiz/answer', [QuizController::class, 'submitAnswer'])->name('quiz.answer');
-    Route::get('/quiz/waiting', [QuizController::class, 'showWaiting'])->name('quiz.waiting');
-    Route::get('/quiz/realtime-status', [QuizController::class, 'getRealtimeStatus'])->name('quiz.realtime-status');
     Route::post('/quiz/mark-ready', [QuizController::class, 'markAsReady'])->name('quiz.mark-ready');
-    Route::get('/quiz/question-html', [QuizController::class, 'getQuestionHtml'])->name('quiz.question-html');
-    Route::get('/quiz/test-status', [QuizController::class, 'checkTestStatus'])->name('quiz.test-status');
+    Route::get('/quiz', [QuizController::class, 'showQuiz'])->name('quiz');
         // participant
     Route::get('/my-results', [ResultsController::class, 'myResults'])
         ->name('results.my');

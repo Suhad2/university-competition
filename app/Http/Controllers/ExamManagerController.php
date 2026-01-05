@@ -11,12 +11,23 @@ use App\Models\Score;
 use App\Events\TestStarted;
 use App\Events\QuestionStarted;
 use App\Events\TestEnded;
+use App\Events\TestUpdated;
+use App\Events\ParticipantReady;
 
+/**
+ * ExamManagerController - Handles exam management operations
+ * 
+ * This controller is used by exam managers to:
+ * - Start/end tests
+ * - Send questions to participants
+ * - Monitor participant status
+ * 
+ * All actions broadcast events via Pusher for real-time updates.
+ */
 class ExamManagerController extends Controller
 {
     /**
-     * Display the exam manager dashboard.
-     * This is the main index method that was missing and causing the error.
+     * Display the exam manager dashboard with current test statistics.
      */
     public function index()
     {
@@ -38,7 +49,6 @@ class ExamManagerController extends Controller
                     ->count();
                 $stats['answered_questions'] = $answeredCount;
             }
-            // Always show ready participants count if there are any
             $stats['ready_participants'] = $currentTest->getReadyParticipantsCount();
         }
 
@@ -48,8 +58,9 @@ class ExamManagerController extends Controller
     }
 
     /**
-     * Start a new test.
-     * Creates a new test in 'waiting' status and broadcasts to participants.
+     * Start a new test in waiting status.
+     * 
+     * Broadcasts TestStarted and TestUpdated events.
      */
     public function startTest(Request $request)
     {
@@ -61,17 +72,21 @@ class ExamManagerController extends Controller
             'status' => 'waiting',
         ]);
 
-        // Broadcast test started event to all participants
-        if (class_exists(\App\Events\TestStarted::class)) {
-            broadcast(new TestStarted($test, 'Test is ready! Waiting for participants...', 0));
-        }
+        // Broadcast test started event
+        broadcast(new TestStarted($test, 'Test is ready! Waiting for participants...', 0));
+
+        // Broadcast test updated event
+        $participants = $this->getParticipantsData($test);
+        $stats = $this->getStats($test);
+        broadcast(new TestUpdated($test, $participants, $stats));
 
         return redirect()->route('exam-manager.dashboard')->with('success', 'Test started! Waiting for participants...');
     }
 
     /**
-     * Start the first question of the test.
-     * Only works when test is in 'waiting' status.
+     * Start the first question of the test for all ready participants.
+     * 
+     * Broadcasts QuestionStarted and TestUpdated events.
      */
     public function startFirstQuestion(Request $request)
     {
@@ -86,12 +101,8 @@ class ExamManagerController extends Controller
             return redirect()->route('exam-manager.dashboard')->with('error', 'No participants are ready! Wait for students to click "I\'m Ready" first.');
         }
 
-        // Get a random question that hasn't been used in this test
-        $usedQuestionIds = Answer::where('test_id', $currentTest->id)
-            ->pluck('question_id')
-            ->toArray();
-
-        $question = Question::whereNotIn('id', $usedQuestionIds)->inRandomOrder()->first();
+        // Get a random question that hasn't been used
+        $question = $this->getNextQuestion($currentTest);
 
         if (!$question) {
             return redirect()->route('exam-manager.dashboard')->with('error', 'No questions available!');
@@ -105,17 +116,29 @@ class ExamManagerController extends Controller
             'started_at' => now(),
         ]);
 
-        // Broadcast question started event to all participants
-        if (class_exists(\App\Events\QuestionStarted::class)) {
-            broadcast(new QuestionStarted($question, $currentTest));
-        }
+        // Broadcast question started event
+        broadcast(new QuestionStarted($question, $currentTest));
+
+        // Broadcast test updated event
+        $participants = $this->getParticipantsData($currentTest);
+        $stats = $this->getStats($currentTest);
+        broadcast(new TestUpdated($currentTest, $participants, $stats, [
+            'id' => $question->id,
+            'title' => $question->title,
+            'option_a' => $question->option_a,
+            'option_b' => $question->option_b,
+            'option_c' => $question->option_c,
+            'option_d' => $question->option_d,
+            'correct_answer' => $question->correct_answer,
+        ]));
 
         return redirect()->route('exam-manager.dashboard')->with('success', "First question sent to {$readyCount} ready participants!");
     }
 
     /**
      * Send the next question to all participants.
-     * Only works when test is active.
+     * 
+     * Broadcasts QuestionStarted and TestUpdated events.
      */
     public function nextQuestion(Request $request)
     {
@@ -125,12 +148,8 @@ class ExamManagerController extends Controller
             return redirect()->route('exam-manager.dashboard')->with('error', 'No active test found!');
         }
 
-        // Get a random question that hasn't been used in this test
-        $usedQuestionIds = Answer::where('test_id', $currentTest->id)
-            ->pluck('question_id')
-            ->toArray();
-
-        $question = Question::whereNotIn('id', $usedQuestionIds)->inRandomOrder()->first();
+        // Get a random question that hasn't been used
+        $question = $this->getNextQuestion($currentTest);
 
         if (!$question) {
             return redirect()->route('exam-manager.dashboard')->with('error', 'No more questions available!');
@@ -142,17 +161,29 @@ class ExamManagerController extends Controller
             'question_start_time' => time(),
         ]);
 
-        // Broadcast question started event to all participants
-        if (class_exists(\App\Events\QuestionStarted::class)) {
-            broadcast(new QuestionStarted($question, $currentTest));
-        }
+        // Broadcast question started event
+        broadcast(new QuestionStarted($question, $currentTest));
+
+        // Broadcast test updated event
+        $participants = $this->getParticipantsData($currentTest);
+        $stats = $this->getStats($currentTest);
+        broadcast(new TestUpdated($currentTest, $participants, $stats, [
+            'id' => $question->id,
+            'title' => $question->title,
+            'option_a' => $question->option_a,
+            'option_b' => $question->option_b,
+            'option_c' => $question->option_c,
+            'option_d' => $question->option_d,
+            'correct_answer' => $question->correct_answer,
+        ]));
 
         return redirect()->route('exam-manager.dashboard')->with('success', 'Next question sent to all participants!');
     }
 
     /**
-     * End the current test.
-     * Calculates scores and assigns ranks to all participants.
+     * End the current test and calculate final scores.
+     * 
+     * Broadcasts TestEnded and TestUpdated events.
      */
     public function endTest(Request $request)
     {
@@ -184,10 +215,13 @@ class ExamManagerController extends Controller
                 $score->update(['rank' => $index + 1]);
             }
 
-            // Broadcast test ended event to all participants
-            if (class_exists(\App\Events\TestEnded::class)) {
-                broadcast(new TestEnded($currentTest, '/scoreboard'));
-            }
+            // Broadcast test ended event
+            broadcast(new TestEnded($currentTest, '/scoreboard'));
+
+            // Broadcast test updated event
+            $participants = $this->getParticipantsData($currentTest);
+            $stats = $this->getStats($currentTest);
+            broadcast(new TestUpdated($currentTest, $participants, $stats));
 
             return redirect()->route('exam-manager.dashboard')->with('success', 'Test ended successfully!');
         }
@@ -232,50 +266,65 @@ class ExamManagerController extends Controller
     }
 
     /**
-     * Trigger manual status update to participants.
-     * This endpoint can be called via AJAX as a fallback for cross-device scenarios.
+     * Get the next unused question for the test.
      */
-    public function triggerStatusUpdate(Request $request)
+    private function getNextQuestion(Test $test): ?Question
     {
-        $currentTest = Test::latest()->first();
+        $usedQuestionIds = Answer::where('test_id', $test->id)
+            ->pluck('question_id')
+            ->toArray();
+
+        return Question::whereNotIn('id', $usedQuestionIds)->inRandomOrder()->first();
+    }
+
+    /**
+     * Get participants data for broadcast.
+     */
+    private function getParticipantsData($test)
+    {
+        $readyParticipants = $test->getReadyParticipants();
+        $users = User::where('role', 'user')->get();
         
-        if ($currentTest) {
-            $data = [];
+        return $users->map(function ($user) use ($test, $readyParticipants) {
+            $hasAnswered = false;
+            $selectedAnswer = null;
             
-            if ($currentTest->status === 'waiting') {
-                $data = [
-                    'testStatus' => 'waiting',
-                    'ready_count' => $currentTest->getReadyParticipantsCount(),
-                ];
-            } elseif ($currentTest->status === 'active' && $currentTest->currentQuestion) {
-                $question = $currentTest->currentQuestion;
-                $data = [
-                    'testStatus' => 'active',
-                    'questionData' => [
-                        'id' => $question->id,
-                        'title' => $question->title,
-                        'option_a' => $question->option_a,
-                        'option_b' => $question->option_b,
-                        'option_c' => $question->option_c,
-                        'option_d' => $question->option_d,
-                    ],
-                    'questionStartTime' => $currentTest->question_start_time,
-                    'timeLimit' => 35,
-                ];
-            } elseif ($currentTest->status === 'ended') {
-                $data = [
-                    'testStatus' => 'ended',
-                ];
+            if ($test->currentQuestion) {
+                $answer = Answer::where('test_id', $test->id)
+                    ->where('user_id', $user->id)
+                    ->where('question_id', $test->current_question_id)
+                    ->first();
+                
+                if ($answer) {
+                    $hasAnswered = true;
+                    $selectedAnswer = $answer->selected_answer;
+                }
             }
             
-            return response()->json([
-                'success' => true, 
-                'message' => 'Update triggered',
-                'test_status' => $currentTest->status,
-                'data' => $data
-            ]);
-        }
-        
-        return response()->json(['success' => false, 'message' => 'No test found']);
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'university' => $user->university,
+                'is_ready' => in_array($user->id, $readyParticipants),
+                'has_answered' => $hasAnswered,
+                'selected_answer' => $selectedAnswer,
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Get stats for broadcast.
+     */
+    private function getStats($test)
+    {
+        return [
+            'ready_participants' => $test->getReadyParticipantsCount(),
+            'answered_questions' => $test->currentQuestion 
+                ? Answer::where('test_id', $test->id)
+                    ->where('question_id', $test->current_question_id)
+                    ->count()
+                : 0,
+            'total_questions' => Question::count(),
+        ];
     }
 }
