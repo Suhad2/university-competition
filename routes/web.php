@@ -7,6 +7,8 @@ use App\Http\Controllers\ExamManagerController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\ScoreboardController;
 use App\Http\Controllers\ResultsController;
+use App\Http\Controllers\GuestController;
+
 // Auth routes
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
@@ -72,7 +74,10 @@ Route::middleware(['role:exam_manager'])->group(function () {
         ->name('results.participant.details');
 });
     
-
-
-
 });
+
+// Guest landing page - main competition display
+Route::get('/', [GuestController::class, 'index'])->name('guest');
+
+// Guest data endpoint - for real-time updates
+Route::get('/guest/data', [GuestController::class, 'getData'])->name('guest.data');
