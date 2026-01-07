@@ -575,6 +575,236 @@
         .highlight-row {
             animation: highlight 2s ease-out;
         }
+
+          /* Full Scoreboard Styles */
+        .scoreboard-full {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow: hidden;
+        }
+
+        .winner-announcement {
+            flex-shrink: 0;
+        }
+
+        .winner-card {
+            background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(16, 185, 129, 0.3);
+            animation: winnerPulse 2s infinite;
+        }
+
+        @keyframes winnerPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .winner-crown {
+            margin-bottom: 0.75rem;
+            animation: crownBounce 1s ease-in-out infinite;
+        }
+
+        @keyframes crownBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .winner-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .winner-card .winner-name {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .winner-card .winner-university {
+            font-size: 1rem;
+            opacity: 0.9;
+            margin-bottom: 0.5rem;
+        }
+
+        .winner-card .winner-score {
+            font-size: 1.2rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            display: inline-block;
+            margin-top: 0.5rem;
+        }
+
+        .stats-overview {
+            flex-shrink: 0;
+        }
+
+        .stat-stat-card {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            height: 100%;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-stat-card .stat-stat-body {
+            padding: 1.25rem;
+        }
+
+        .stat-stat-card .stat-stat-body h4 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+        }
+
+        .stat-stat-card .stat-stat-body p {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin: 0;
+        }
+
+        .rankings-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .rankings-header {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+            padding: 0.85rem 1.25rem;
+            font-weight: 600;
+        }
+
+        .rankings-header h5 {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .rankings-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .rankings-table {
+            margin: 0;
+            font-size: 0.95rem;
+        }
+
+        .rankings-table thead th {
+            background: #1e293b;
+            position: sticky;
+            top: 0;
+            font-weight: 600;
+            color: white;
+            padding: 0.85rem 1rem;
+            border-bottom: 2px solid #334155;
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+
+        .rankings-table tbody td {
+            padding: 0.85rem 1rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .rankings-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .rankings-table tbody tr:first-child {
+            border-left: 4px solid #fbbf24;
+            background: rgba(251, 191, 36, 0.1);
+        }
+
+        .rank-badge {
+            font-size: 1rem;
+            padding: 0.4rem 0.6rem;
+            border-radius: 6px;
+        }
+
+        .rank-badge.gold {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: white;
+        }
+
+        .rank-badge.silver {
+            background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+            color: white;
+        }
+
+        .rank-badge.bronze {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: white;
+        }
+
+        .rank-badge.default {
+            background: #1e293b;
+            color: white;
+        }
+
+        .score-badge {
+            font-size: 1rem;
+            font-weight: 600;
+            padding: 0.4rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        .score-badge.primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .score-badge.success {
+            background: #10b981;
+            color: white;
+        }
+
+        .score-badge.info {
+            background: #06b6d4;
+            color: white;
+        }
+
+        .winner-icon {
+            margin-right: 0.3rem;
+        }
+
+        /* Scrollbar for rankings */
+        .rankings-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .rankings-body::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .rankings-body::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .rankings-body::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
     </style>
 
     <!-- Pusher configuration -->
@@ -587,7 +817,6 @@
         <!-- Part 1: Competition Title -->
         <header class="competition-header">
             <h1><i class="fas fa-graduation-cap"></i> University Competition 2025</h1>
-            <p class="subtitle">Live Competition View - Real-time Updates</p>
         </header>
 
         <!-- Part 2: Four Stats Cards -->
@@ -598,7 +827,6 @@
                         <div class="icon-wrapper">
                             <i class="fas fa-users"></i>
                         </div>
-                        <div class="stat-value" id="total-participants">0</div>
                         <div class="stat-label">Total Participants</div>
                     </div>
                 </div>
@@ -607,7 +835,6 @@
                         <div class="icon-wrapper">
                             <i class="fas fa-check-circle"></i>
                         </div>
-                        <div class="stat-value" id="ready-count">0</div>
                         <div class="stat-label">Ready</div>
                     </div>
                 </div>
@@ -642,21 +869,88 @@
                         <span>Participants Status</span>
                         <span class="badge bg-light text-dark ms-auto" id="participant-count-badge">0</span>
                     </div>
-                    <div class="panel-body">
-                        <table class="table table-hover participants-table">
-                            <thead>
-                                <tr>
-                                    <th><i class="fas fa-user me-2"></i>Name</th>
-                                    <th><i class="fas fa-university me-2"></i>University</th>
-                                    <th><i class="fas fa-info-circle me-2"></i>Status</th>
-                                    <th><i class="fas fa-check me-2"></i>Answer</th>
-                                </tr>
-                            </thead>
-                            <tbody id="participants-table-body">
-                                <!-- Dynamic content will be inserted here -->
-                            </tbody>
-                        </table>
+                  <!-- Participants Status -->
+                    @if($currentTest && ($currentTest->isActive() || $currentTest->isWaiting()))
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5><i class="fas fa-users"></i> 
+                                        @if($currentTest->isWaiting())
+                                            Ready Participants ({{ $stats['ready_participants'] }})
+                                        @else
+                                            Participants Status
+                                        @endif
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    @if($stats['ready_participants'] == 0)
+                                        <div class="alert alert-warning">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            No participants are ready yet. Wait for students to click "I'm Ready".
+                                        </div>
+                                    @else
+                                    <div class="table-responsive">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>University</th>
+                                                    <th>Status</th>
+                                                    <th>Answer</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="participantsTable">
+                                                @php
+                                                $readyParticipants = $currentTest->getReadyParticipants();
+                                                @endphp
+                                                @foreach($users as $user)
+                                                    @if(in_array($user->id, $readyParticipants))
+                                                    <tr>
+                                                        <td>{{ $user->name }}</td>
+                                                        <td>{{ $user->university ?? 'N/A' }}</td>
+                                                        <td>
+                                                            @php
+                                                                $hasAnswered = \App\Models\Answer::where('test_id', $currentTest->id)
+                                                                    ->where('user_id', $user->id)
+                                                                    ->where('question_id', $currentTest->current_question_id ?? 0)
+                                                                    ->exists();
+                                                            @endphp
+                                                            @if($hasAnswered)
+                                                                <span class="badge bg-success">Answered</span>
+                                                            @else
+                                                                @if($currentTest->isWaiting())
+                                                                    <span class="badge bg-info">Ready</span>
+                                                                @else
+                                                                    <span class="badge bg-warning">Waiting</span>
+                                                                @endif
+                                                            @endif
+                                                        </td>
+                                                        <td>
+                                                            @if($hasAnswered)
+                                                                @php
+                                                                    $answer = \App\Models\Answer::where('test_id', $currentTest->id)
+                                                                        ->where('user_id', $user->id)
+                                                                        ->where('question_id', $currentTest->current_question_id ?? 0)
+                                                                        ->first();
+                                                                @endphp
+                                                                {{ $answer->selected_answer ?? 'N/A' }}
+                                                            @else
+                                                                <span class="text-muted">-</span>
+                                                            @endif
+                                                        </td>
+                                                    </tr>
+                                                    @endif
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                    @endif
                 </div>
 
                 <!-- Right: Question Display -->
@@ -705,17 +999,91 @@
 
                 <!-- Scoreboard (Hidden by default, shown when test ends) -->
                 <div class="scoreboard-container" id="scoreboard-container">
-                    <div class="scoreboard-card">
-                        <div class="scoreboard-header">
-                            <div class="trophy-icon">
-                                <i class="fas fa-trophy"></i>
+                    <div class="scoreboard-full">
+                                                <!-- Winner Announcement -->
+                            @if($currentTest && $currentTest->isEnded() && $scores->count() > 0)
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="card bg-gradient bg-success text-white">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-crown fa-3x mb-3"></i>
+                                            <h3>🏆 Competition Winner 🏆</h3>
+                                            <p class="mb-0">{{ $scores->first()->user->university }}</p>
+                                            <p class="mb-0">Score: {{ $scores->first()->total_score }} points</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <h2>Competition Results</h2>
-                            <p>Final Standings</p>
-                        </div>
-                        <div class="scoreboard-body" id="scoreboard-body">
-                            <!-- Dynamic scoreboard content -->
-                        </div>
+                            @endif
+
+                       
+                     <!-- Scoreboard Table -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-list-ol"></i> Rankings</h5>
+    </div>
+    <div class="card-body">
+        @if($scores->count() > 0)
+            <div class="table-responsive">
+                <table class="table table-striped table-hover scoreboard-table">
+                    <thead class="table-dark">
+                        <tr>
+                            <th width="10%">Rank</th>
+                            <th width="25%">Participant</th>
+                            <th width="20%">University</th>
+                            <th width="15%">Score</th>
+                            <th width="15%">Correct</th>
+                            <th width="15%">Accuracy</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scoreboardBody">
+                        @foreach($scores as $score)
+                        <tr class="{{ $loop->first && $currentTest && $currentTest->isEnded() ? 'table-warning' : '' }}">
+                            <td>
+                                @if($score->rank == 1)
+                                    <span class="badge bg-warning fs-6">🥇 {{ $score->rank }}</span>
+                                @elseif($score->rank == 2)
+                                    <span class="badge bg-secondary fs-6">🥈 {{ $score->rank }}</span>
+                                @elseif($score->rank == 3)
+                                    <span class="badge bg-danger fs-6">🥉 {{ $score->rank }}</span>
+                                @else
+                                    <span class="badge bg-dark fs-6">{{ $score->rank }}</span>
+                                @endif
+                            </td>
+                            <td>
+                                <strong>{{ $score->user->name }}</strong>
+                                @if($score->rank == 1 && $currentTest && $currentTest->isEnded())
+                                    <i class="fas fa-crown text-warning ms-1"></i>
+                                @endif
+                            </td>
+                            <td>{{ $score->user->university ?? 'N/A' }}</td>
+                            <td>
+                                <span class="badge bg-primary fs-6">{{ $score->total_score }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-success fs-6">{{ $score->correct_answers }}</span>
+                            </td>
+                            <td>
+                                @if($score->total_questions > 0)
+                                    <span class="badge bg-info fs-6">{{ $score->getAccuracyPercentage() }}%</span>
+                                @else
+                                    <span class="badge bg-secondary fs-6">0%</span>
+                                @endif
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <div class="text-center py-5">
+                <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No scores available</h5>
+                <p class="text-muted">Scores will appear here once participants start answering questions.</p>
+            </div>
+        @endif
+    </div>
+</div>
                     </div>
                 </div>
             </div>
@@ -975,8 +1343,10 @@
                 console.log('Initial data fetched:', data);
             } catch (error) {
                 console.error('Error fetching initial data:', error);
-                // Use mock data for demo
-                loadMockData();
+                 // Show empty state message - data should come from database
+                updateParticipantsTable([]);
+                elements.totalParticipants.textContent = '0';
+                elements.readyCount.textContent = '0';
             }
         }
 
@@ -1124,36 +1494,79 @@
             // Sort by score (descending)
             const sorted = [...scores].sort((a, b) => (b.score || 0) - (a.score || 0));
 
-            let html = '';
+            // Calculate statistics
+            const totalParticipants = sorted.length;
+            const highestScore = sorted.length > 0 ? (sorted[0].score || 0) : 0;
+            let totalCorrect = 0;
+            let totalQuestions = sorted.length * 10; // Estimate based on participants
+
+            // Update statistics displays
+            document.getElementById('stat-participants').textContent = totalParticipants;
+            document.getElementById('stat-correct').textContent = totalCorrect;
+            document.getElementById('stat-highest').textContent = highestScore;
+
+            // Calculate accuracy (mock calculation - in real app would come from backend)
+            const accuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+            document.getElementById('stat-accuracy').textContent = accuracy + '%';
+
+            // Show winner announcement if there are scores
+            const winnerAnnouncement = document.getElementById('winner-announcement');
+            if (sorted.length > 0) {
+                winnerAnnouncement.style.display = 'block';
+                document.getElementById('winner-name').textContent = sorted[0].name || 'Unknown';
+                document.getElementById('winner-university').textContent = sorted[0].university || 'N/A';
+                document.getElementById('winner-score').textContent = 'Score: ' + (sorted[0].score || 0) + ' points';
+            } else {
+                winnerAnnouncement.style.display = 'none';
+            }
+
+            // Generate rankings table
+            let tableHtml = '';
             sorted.forEach((item, index) => {
                 const rank = index + 1;
-                let rankClass = '';
-                let topClass = '';
+                let rankBadgeClass = 'default';
+                let rankBadgeContent = rank;
 
                 if (rank === 1) {
-                    rankClass = '<i class="fas fa-crown"></i>';
-                    topClass = 'top-1';
+                    rankBadgeClass = 'gold';
+                    rankBadgeContent = '🥇 ' + rank;
                 } else if (rank === 2) {
-                    rankClass = '2';
-                    topClass = 'top-2';
+                    rankBadgeClass = 'silver';
+                    rankBadgeContent = '🥈 ' + rank;
                 } else if (rank === 3) {
-                    rankClass = '3';
-                    topClass = 'top-3';
+                    rankBadgeClass = 'bronze';
+                    rankBadgeContent = '🥉 ' + rank;
                 }
 
-                html += `
-                    <div class="score-row ${topClass}">
-                        <div class="rank">${rankClass}</div>
-                        <div class="participant-info">
-                            <div class="participant-name">${escapeHtml(item.name)}</div>
-                            <div class="participant-university">${escapeHtml(item.university || 'N/A')}</div>
-                        </div>
-                        <div class="score">${item.score || 0} pts</div>
-                    </div>
+                // Calculate accuracy for this participant (mock)
+                const participantAccuracy = item.correct_answers && item.total_questions
+                    ? Math.round((item.correct_answers / item.total_questions) * 100)
+                    : (item.score > 0 ? Math.min(100, Math.round(item.score * 10)) : 0);
+
+                tableHtml += `
+                    <tr>
+                        <td>
+                            <span class="badge rank-badge ${rankBadgeClass}">${rankBadgeContent}</span>
+                        </td>
+                        <td>
+                            <strong>${escapeHtml(item.name)}</strong>
+                            ${rank === 1 ? '<i class="fas fa-crown text-warning ms-1"></i>' : ''}
+                        </td>
+                        <td>${escapeHtml(item.university || 'N/A')}</td>
+                        <td>
+                            <span class="badge score-badge primary">${item.score || 0}</span>
+                        </td>
+                        <td>
+                            <span class="badge score-badge success">${item.correct_answers || 0}</span>
+                        </td>
+                        <td>
+                            <span class="badge score-badge info">${participantAccuracy}%</span>
+                        </td>
+                    </tr>
                 `;
             });
 
-            elements.scoreboardBody.innerHTML = html || '<p class="text-center text-muted">No scores available</p>';
+            elements.scoreboardBody.innerHTML = tableHtml || '<tr><td colspan="6" class="text-center text-muted py-5"><i class="fas fa-chart-bar fa-3x mb-3"></i><h5 class="text-muted">No scores available</h5><p class="text-muted">Scores will appear here once participants start answering questions.</p></td></tr>';
         }
 
         // Update stats display
@@ -1170,42 +1583,58 @@
             return div.innerHTML;
         }
 
-        // Load mock data for demo purposes
-        function loadMockData() {
-            console.log('Loading mock data for demo...');
+        // Auto-refresh for live scoreboard
+@if($currentTest && $currentTest->isActive())
+function updateScoreboard() {
+    fetch('/scoreboard/live')
+        .then(response => response.json())
+        .then(data => {
+            if (data.scores) {
+                updateScoreboardTable(data.scores);
+            }
+        })
+        .catch(error => console.error('Error updating scoreboard:', error));
+}
 
-            // Mock participants
-            const mockParticipants = [
-                { id: 1, name: 'Ahmed Mohamed', university: 'Cairo University', status: 'ready', has_answered: true, selected_answer: 'A' },
-                { id: 2, name: 'Fatima Ali', university: 'American University', status: 'ready', has_answered: true, selected_answer: 'B' },
-                { id: 3, name: 'Omar Hassan', university: 'Tech University', status: 'waiting', has_answered: false, selected_answer: null },
-                { id: 4, name: 'Sara Ahmed', university: 'Engineering College', status: 'ready', has_answered: false, selected_answer: null },
-                { id: 5, name: 'Mohamed Ali', university: 'Science University', status: 'ready', has_answered: true, selected_answer: 'C' },
-                { id: 6, name: 'Layla Mohamed', university: 'Arts Academy', status: 'ready', has_answered: true, selected_answer: 'A' },
-                { id: 7, name: 'Youssef Fatma', university: 'Medical School', status: 'ready', has_answered: false, selected_answer: null },
-                { id: 8, name: 'Amira Hassan', university: 'Law School', status: 'waiting', has_answered: false, selected_answer: null }
-            ];
+function updateScoreboardTable(scores) {
+    const tbody = document.getElementById('scoreboardBody');
+    if (!tbody) return;
+    
+    let html = '';
+    scores.forEach((score, index) => {
+        const rankBadge = getRankBadge(score.rank);
+        const isWinner = score.rank === 1 ? 'table-warning' : '';
+        
+        html += `
+            <tr class="${isWinner}">
+                <td>${rankBadge}</td>
+                <td><strong>${score.user_name}</strong>${score.rank === 1 ? ' <i class="fas fa-crown text-warning ms-1"></i>' : ''}</td>
+                <td>${score.university || 'N/A'}</td>
+                <td><span class="badge bg-primary fs-6">${score.total_score}</span></td>
+                <td><span class="badge bg-success fs-6">${score.correct_answers}</span></td>
+                <td><span class="badge bg-info fs-6">${score.accuracy}%</span></td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
 
-            state.participants = mockParticipants;
-            updateParticipantsTable(mockParticipants);
-            elements.totalParticipants.textContent = '8';
-            elements.readyCount.textContent = '6';
+function getRankBadge(rank) {
+    if (rank === 1) {
+        return '<span class="badge bg-warning fs-6">🥇 ' + rank + '</span>';
+    } else if (rank === 2) {
+        return '<span class="badge bg-secondary fs-6">🥈 ' + rank + '</span>';
+    } else if (rank === 3) {
+        return '<span class="badge bg-danger fs-6">🥉 ' + rank + '</span>';
+    } else {
+        return '<span class="badge bg-dark fs-6">' + rank + '</span>';
+    }
+}
+// Update scoreboard every 5 seconds
+setInterval(updateScoreboard, 5000);
+@endif
 
-            // Simulate a question after a delay
-            setTimeout(() => {
-                handleQuestionStarted({
-                    id: 1,
-                    question_number: 1,
-                    title: 'What is the capital of France?',
-                    option_a: 'London',
-                    option_b: 'Paris',
-                    option_c: 'Berlin',
-                    option_d: 'Madrid',
-                    correct_answer: 'B',
-                    time_limit: 35
-                });
-            }, 3000);
-        }
     </script>
 </body>
 

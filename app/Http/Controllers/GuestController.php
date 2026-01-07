@@ -6,21 +6,63 @@ use App\Models\Test;
 use App\Models\User;
 use App\Models\Answer;
 use App\Models\Question;
+use App\Models\Score;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class GuestController extends Controller
 {
-    /**
+       /**
      * Display the guest landing page.
      *
      * @return \Illuminate\View\View
      */
     public function index()
     {
-        return view('index');
+        $currentTest = Test::latest()->first();
+        
+        // Get all users (participants)
+        $users = User::where('role', 'participant')->get();
+        
+        // Get scores for current test
+        $scores = collect();
+        if ($currentTest) {
+            $scores = Score::with('user')
+                ->where('test_id', $currentTest->id)
+                ->orderBy('total_score', 'desc')
+                ->orderBy('updated_at', 'asc')
+                ->get();
+            
+            // Add rank to scores that don't have one yet
+            foreach ($scores as $index => $score) {
+                if (!$score->rank) {
+                    $score->update(['rank' => $index + 1]);
+                    $score->refresh();
+                }
+            }
+        }
+        
+        // Calculate stats
+        $stats = [
+            'total_users' => $users->count(),
+            'ready_participants' => 0,
+            'total_questions' => Question::count() ?? 0,
+            'answered_questions' => 0
+        ];
+        
+        if ($currentTest) {
+            $readyParticipants = $currentTest->getReadyParticipants() ?? [];
+            $stats['ready_participants'] = count($readyParticipants);
+            
+            if ($currentTest->current_question_id) {
+                $stats['answered_questions'] = Answer::where('test_id', $currentTest->id)
+                    ->where('question_id', $currentTest->current_question_id)
+                    ->count();
+            }
+        }
+        
+        return view('index', compact('currentTest', 'users', 'scores', 'stats'));
     }
-
     /**
      * Get competition data for real-time updates.
      *
@@ -28,6 +70,7 @@ class GuestController extends Controller
      */
     public function getData(): JsonResponse
     {
+        // ... (getData method remains unchanged)
         try {
             // Get the current test
             $currentTest = Test::latest()->first();
@@ -96,7 +139,7 @@ class GuestController extends Controller
                 }
 
                 // Get user's score
-                $userScore = \App\Models\Score::where('test_id', $currentTest->id)
+                $userScore = Score::where('test_id', $currentTest->id)
                     ->where('user_id', $user->id)
                     ->value('score') ?? 0;
 
@@ -123,18 +166,16 @@ class GuestController extends Controller
                     'option_c' => $currentQuestion->option_c,
                     'option_d' => $currentQuestion->option_d,
                     'correct_answer' => $currentQuestion->correct_answer,
-                    'time_limit' => 35 // Default time limit
+                    'time_limit' => 35
                 ];
             }
 
             // Get scoreboard data (for ended tests)
             $scoreboard = [];
             if ($currentTest->isEnded()) {
-                // Sort participants by score
                 usort($participants, function($a, $b) {
                     return ($b['score'] ?? 0) - ($a['score'] ?? 0);
                 });
-
                 $scoreboard = $participants;
             }
 
