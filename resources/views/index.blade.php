@@ -1635,6 +1635,69 @@ function getRankBadge(rank) {
 setInterval(updateScoreboard, 5000);
 @endif
 
+
+/**
+ * Update entire participants table
+ */
+function updateParticipantsTable(participants) {
+    const table = document.getElementById('participantsTable');
+    if (!table) return;
+
+    const currentTest = {{ $currentTest && $currentTest->isActive() ? 'true' : 'false' }};
+    
+    table.innerHTML = '';
+    
+    participants.forEach(user => {
+        // Only show ready participants if test is waiting
+        if (!currentTest && !user.is_ready) return;
+        
+        const row = document.createElement('tr');
+        
+        let statusBadge = '';
+        if (user.has_answered) {
+            statusBadge = '<span class="badge bg-success">Answered</span>';
+        } else if (user.is_ready) {
+            statusBadge = currentTest 
+                ? '<span class="badge bg-warning">Waiting</span>'
+                : '<span class="badge bg-info">Ready</span>';
+        } else {
+            statusBadge = '<span class="badge bg-secondary">Not Ready</span>';
+        }
+        
+        row.innerHTML = `
+            <td>${user.name}</td>
+            <td>${user.university || 'N/A'}</td>
+            <td>${statusBadge}</td>
+            <td>${user.selected_answer || '-'}</td>
+        `;
+        table.appendChild(row);
+    });
+}
+
+/**
+ * Update single participant's answer
+ */
+function updateParticipantAnswer(userId, selectedAnswer) {
+    const table = document.getElementById('participantsTable');
+    if (!table) return;
+
+    const rows = table.querySelectorAll('tr');
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 4) {
+            const statusCell = cells[2];
+            const answerCell = cells[3];
+            
+            // Update status to answered
+            if (statusCell.querySelector('.badge.bg-warning')) {
+                statusCell.innerHTML = '<span class="badge bg-success">Answered</span>';
+                answerCell.textContent = selectedAnswer;
+            }
+        }
+    });
+}
+
+
     </script>
 </body>
 

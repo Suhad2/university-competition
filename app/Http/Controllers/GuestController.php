@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 
 class GuestController extends Controller
 {
-       /**
+        /**
      * Display the guest landing page.
      *
      * @return \Illuminate\View\View
@@ -26,6 +26,7 @@ class GuestController extends Controller
         
         // Get scores for current test
         $scores = collect();
+        $readyParticipants = [];
         if ($currentTest) {
             $scores = Score::with('user')
                 ->where('test_id', $currentTest->id)
@@ -40,28 +41,67 @@ class GuestController extends Controller
                     $score->refresh();
                 }
             }
+            
+            // Get ready participants
+            $readyParticipants = $currentTest->getReadyParticipants() ?? [];
         }
         
         // Calculate stats
         $stats = [
             'total_users' => $users->count(),
-            'ready_participants' => 0,
+            'ready_participants' => count($readyParticipants),
             'total_questions' => Question::count() ?? 0,
             'answered_questions' => 0
         ];
         
-        if ($currentTest) {
-            $readyParticipants = $currentTest->getReadyParticipants() ?? [];
-            $stats['ready_participants'] = count($readyParticipants);
-            
-            if ($currentTest->current_question_id) {
-                $stats['answered_questions'] = Answer::where('test_id', $currentTest->id)
-                    ->where('question_id', $currentTest->current_question_id)
-                    ->count();
-            }
+        if ($currentTest && $currentTest->current_question_id) {
+            $stats['answered_questions'] = Answer::where('test_id', $currentTest->id)
+                ->where('question_id', $currentTest->current_question_id)
+                ->count();
         }
         
-        return view('index', compact('currentTest', 'users', 'scores', 'stats'));
+        // Build participants data for JavaScript
+        $participantsData = [];
+        foreach ($users as $user) {
+            // Determine status for each user
+            $hasAnswered = false;
+            $selectedAnswer = null;
+            $status = 'waiting';
+            
+            if ($currentTest) {
+                if ($currentTest->isWaiting()) {
+                    $status = in_array($user->id, $readyParticipants) ? 'ready' : 'waiting';
+                } elseif ($currentTest->isActive() && in_array($user->id, $readyParticipants)) {
+                    $hasAnswered = Answer::where('test_id', $currentTest->id)
+                        ->where('user_id', $user->id)
+                        ->where('question_id', $currentTest->current_question_id)
+                        ->exists();
+                    
+                    $status = $hasAnswered ? 'answered' : 'waiting';
+                    
+                    if ($hasAnswered) {
+                        $answer = Answer::where('test_id', $currentTest->id)
+                            ->where('user_id', $user->id)
+                            ->where('question_id', $currentTest->current_question_id)
+                            ->first();
+                        $selectedAnswer = $answer->selected_answer ?? null;
+                    }
+                } elseif ($currentTest->isEnded()) {
+                    $status = 'ended';
+                }
+            }
+            
+            $participantsData[] = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'university' => $user->university ?? 'N/A',
+                'status' => $status,
+                'has_answered' => $hasAnswered,
+                'selected_answer' => $selectedAnswer
+            ];
+        }
+        
+        return view('index', compact('currentTest', 'users', 'scores', 'stats', 'readyParticipants', 'participantsData'));
     }
     /**
      * Get competition data for real-time updates.
@@ -92,7 +132,7 @@ class GuestController extends Controller
             }
 
             // Get all participant users
-            $users = User::where('role', 'participant')->get();
+            $users = User::where('role', 'user')->get();
 
             // Get ready participants from the test
             $readyParticipants = $currentTest->getReadyParticipants() ?? [];
