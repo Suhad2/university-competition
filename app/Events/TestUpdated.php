@@ -46,3 +46,4 @@ class TestUpdated implements ShouldBroadcast
         return 'test.updated';
     }
 }
+

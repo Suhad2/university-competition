@@ -1244,6 +1244,16 @@
             if (data.participants && Array.isArray(data.participants)) {
                 updateParticipantsTable(data.participants);
             }
+            
+            // Handle question data from TestUpdated event (includes correct_answer)
+            if (data.question) {
+                const questionData = {
+                    ...data.question,
+                    question_start_time: data.test?.question_start_time || data.question_start_time,
+                    time_limit: data.test?.time_limit || data.time_limit || 35
+                };
+                handleQuestionStarted(questionData);
+            }
         }
 
         function handleParticipantReady(data) {
@@ -1271,6 +1281,16 @@
             state.timeLimit = data.time_limit || 35;
             state.hasTimeExpired = false;
             state.correctAnswer = null;
+
+            // Debug: Log the question data
+            console.log('Question started:', question);
+            console.log('Correct answer:', question.correct_answer);
+
+               // Fallback: check if correct_answer is in parent data (from TestUpdated event)
+            if (!question.correct_answer && data.correct_answer) {
+                question.correct_answer = data.correct_answer;
+                console.log('Correct answer from parent:', data.correct_answer);
+            }
 
             // Clear previous correct answer highlighting
             clearCorrectAnswerHighlighting();
@@ -1483,21 +1503,36 @@
             elements.timerDisplay.textContent = '0s';
             elements.timerDisplay.classList.add('danger');
 
-            // Highlight correct answer
+                   // Debug: Log question data
+            console.log('=== TIME UP DEBUG ===');
+            console.log('Full state.currentQuestion:', state.currentQuestion);
+            console.log('Correct answer from state:', state.correctAnswer);
+            console.log('Correct answer from currentQuestion:', state.currentQuestion?.correct_answer);
+
+
+              // Highlight correct answer
             if (state.currentQuestion && state.currentQuestion.correct_answer) {
                 state.correctAnswer = state.currentQuestion.correct_answer;
+                console.log('Highlighting correct answer:', state.currentQuestion.correct_answer);
                 highlightCorrectAnswer(state.currentQuestion.correct_answer);
+            } else {
+               
+                console.warn('❌ No correct_answer found in question data!');
+                console.warn('Available fields:', Object.keys(state.currentQuestion || {}));
             }
 
             // Show correct answer in timer area
             elements.timerDisplay.innerHTML = '<i class="fas fa-check"></i>';
         }
-
-        function highlightCorrectAnswer(correctOption) {
+    function highlightCorrectAnswer(correctOption) {
             const options = elements.optionsGrid.querySelectorAll('.option-item');
+            console.log('Found options:', options.length);
+            
             options.forEach(option => {
+                console.log('Option:', option.dataset.option, 'Correct:', correctOption, 'Match:', option.dataset.option === correctOption);
                 if (option.dataset.option === correctOption) {
                     option.classList.add('correct');
+                    console.log('Added .correct class to option', correctOption);
                 }
             });
         }

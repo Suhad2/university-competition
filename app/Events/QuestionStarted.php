@@ -59,11 +59,13 @@ class QuestionStarted implements ShouldBroadcastNow
             'test_id' => $this->test->id,
             'question' => [
                 'id' => $this->question->id,
+                'question_number' => $this->question->question_number ?? 1,
                 'title' => $this->question->title,
                 'option_a' => $this->question->option_a,
                 'option_b' => $this->question->option_b,
                 'option_c' => $this->question->option_c,
                 'option_d' => $this->question->option_d,
+                'correct_answer' => $this->question->correct_answer,
             ],
             'question_start_time' => $this->questionStartTime,
             'time_limit' => $this->timeLimit,
