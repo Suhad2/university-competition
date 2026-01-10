@@ -805,6 +805,27 @@
         .rankings-body::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+
+        
+        .stat-card .logo-wrapper {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 0.75rem;
+            background: rgba(255, 255, 255, 0.9);
+            overflow: hidden;
+        }
+
+        .stat-card .stat-logo {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
     </style>
 
     <!-- Pusher configuration -->
@@ -838,25 +859,24 @@
                         <div class="stat-label">Ready</div>
                     </div>
                 </div>
-                <div class="col-md-3 col-sm-6">
+                       <div class="col-md-3 col-sm-6">
                     <div class="stat-card warning">
-                        <div class="icon-wrapper">
-                            <i class="fas fa-question-circle"></i>
+                        <div class="logo-wrapper">
+                            <img src="{{ asset('images/logo1.png') }}" alt="Logo 1" class="stat-logo">
                         </div>
-                        <div class="stat-value" id="current-question">-</div>
+                        <span id="current-question" style="display: none;">-</span>
                         <div class="stat-label">Current Question</div>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6">
                     <div class="stat-card info">
-                        <div class="icon-wrapper">
-                            <i class="fas fa-clock"></i>
+                        <div class="logo-wrapper">
+                            <img src="{{ asset('images/logo2.png') }}" alt="Logo 2" class="stat-logo">
                         </div>
-                        <div class="stat-value" id="time-remaining">--</div>
+                        <span id="time-remaining" style="display: none;">--</span>
                         <div class="stat-label">Time Remaining</div>
                     </div>
                 </div>
-            </div>
         </section>
 
         <!-- Part 3: Main Content (Split View) -->
