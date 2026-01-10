@@ -14,7 +14,8 @@
             box-sizing: border-box;
         }
 
-        html, body {
+        html,
+        body {
             height: 100vh;
             overflow: hidden;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -275,8 +276,15 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
         }
 
         .question-body {
@@ -549,7 +557,8 @@
                 min-height: 100vh;
             }
 
-            html, body {
+            html,
+            body {
                 overflow: auto;
             }
 
@@ -568,15 +577,20 @@
 
         /* Animation for new data */
         @keyframes highlight {
-            0% { background: #dbeafe; }
-            100% { background: transparent; }
+            0% {
+                background: #dbeafe;
+            }
+
+            100% {
+                background: transparent;
+            }
         }
 
         .highlight-row {
             animation: highlight 2s ease-out;
         }
 
-          /* Full Scoreboard Styles */
+        /* Full Scoreboard Styles */
         .scoreboard-full {
             height: 100%;
             display: flex;
@@ -600,8 +614,15 @@
         }
 
         @keyframes winnerPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.02); }
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.02);
+            }
         }
 
         .winner-crown {
@@ -610,8 +631,15 @@
         }
 
         @keyframes crownBounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
         }
 
         .winner-card h3 {
@@ -806,7 +834,7 @@
             background: #94a3b8;
         }
 
-        
+
         .stat-card .logo-wrapper {
             width: 55px;
             height: 55px;
@@ -845,38 +873,37 @@
             <div class="row g-3">
                 <div class="col-md-3 col-sm-6">
                     <div class="stat-card primary">
-                        <div class="icon-wrapper">
-                            <i class="fas fa-users"></i>
+                        <div class="logo-wrapper">
+                            <img src="{{ asset('images/jj.png') }}" alt="Logo" class="stat-logo">
                         </div>
-                        <div class="stat-label">Total Participants</div>
+                        <div class="stat-label">Alzahraa Univ.</div>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6">
                     <div class="stat-card success">
-                        <div class="icon-wrapper">
-                            <i class="fas fa-check-circle"></i>
+                        <div class="logo-wrapper">
+                            <img src="{{ asset('images/images.jfif') }}" alt="Logo" class="stat-logo">
                         </div>
-                        <div class="stat-label">Ready</div>
+                        <div class="stat-label">Univ. of Kufa</div>
                     </div>
                 </div>
-                       <div class="col-md-3 col-sm-6">
+                <div class="col-md-3 col-sm-6">
                     <div class="stat-card warning">
                         <div class="logo-wrapper">
-                            <img src="{{ asset('images/logo1.png') }}" alt="Logo 1" class="stat-logo">
+                            <img src="{{ asset('images/images (1).jfif') }}" alt="Logo" class="stat-logo">
                         </div>
-                        <span id="current-question" style="display: none;">-</span>
-                        <div class="stat-label">Current Question</div>
+                        <div class="stat-label">Univ. of Karbala</div>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6">
                     <div class="stat-card info">
                         <div class="logo-wrapper">
-                            <img src="{{ asset('images/logo2.png') }}" alt="Logo 2" class="stat-logo">
+                            <img src="{{ asset('images/images (2).jfif') }}" alt="Logo" class="stat-logo">
                         </div>
-                        <span id="time-remaining" style="display: none;">--</span>
-                        <div class="stat-label">Time Remaining</div>
+                        <div class="stat-label">Univ. of Babylon</div>
                     </div>
                 </div>
+            </div>
         </section>
 
         <!-- Part 3: Main Content (Split View) -->
@@ -889,87 +916,103 @@
                         <span>Participants Status</span>
                         <span class="badge bg-light text-dark ms-auto" id="participant-count-badge">0</span>
                     </div>
-                  <!-- Participants Status -->
-                    @if($currentTest && ($currentTest->isActive() || $currentTest->isWaiting()))
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5><i class="fas fa-users"></i> 
-                                        @if($currentTest->isWaiting())
-                                            Ready Participants ({{ $stats['ready_participants'] }})
-                                        @else
-                                            Participants Status
-                                        @endif
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    @if($stats['ready_participants'] == 0)
-                                        <div class="alert alert-warning">
-                                            <i class="fas fa-exclamation-triangle"></i>
-                                            No participants are ready yet. Wait for students to click "I'm Ready".
-                                        </div>
-                                    @else
-                                    <div class="table-responsive">
-                                        <table class="table table-striped">
-                                            <thead>
-                                                <tr>
-                                                    <th>Name</th>
-                                                    <th>University</th>
-                                                    <th>Status</th>
-                                                    <th>Answer</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="participantsTable">
-                                                @php
-                                                $readyParticipants = $currentTest->getReadyParticipants();
-                                                @endphp
-                                                @foreach($users as $user)
-                                                    @if(in_array($user->id, $readyParticipants))
-                                                    <tr>
-                                                        <td>{{ $user->name }}</td>
-                                                        <td>{{ $user->university ?? 'N/A' }}</td>
-                                                        <td>
-                                                            @php
-                                                                $hasAnswered = \App\Models\Answer::where('test_id', $currentTest->id)
-                                                                    ->where('user_id', $user->id)
-                                                                    ->where('question_id', $currentTest->current_question_id ?? 0)
-                                                                    ->exists();
-                                                            @endphp
-                                                            @if($hasAnswered)
-                                                                <span class="badge bg-success">Answered</span>
-                                                            @else
-                                                                @if($currentTest->isWaiting())
-                                                                    <span class="badge bg-info">Ready</span>
-                                                                @else
-                                                                    <span class="badge bg-warning">Waiting</span>
-                                                                @endif
-                                                            @endif
-                                                        </td>
-                                                        <td>
-                                                            @if($hasAnswered)
-                                                                @php
-                                                                    $answer = \App\Models\Answer::where('test_id', $currentTest->id)
-                                                                        ->where('user_id', $user->id)
-                                                                        ->where('question_id', $currentTest->current_question_id ?? 0)
-                                                                        ->first();
-                                                                @endphp
-                                                                {{ $answer->selected_answer ?? 'N/A' }}
-                                                            @else
-                                                                <span class="text-muted">-</span>
-                                                            @endif
-                                                        </td>
-                                                    </tr>
-                                                    @endif
-                                                @endforeach
-                                            </tbody>
-                                        </table>
+                    <!-- Participants Status -->
+                    @if ($currentTest && ($currentTest->isActive() || $currentTest->isWaiting()))
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5><i class="fas fa-users"></i>
+                                            @if ($currentTest->isWaiting())
+                                                Ready Participants ({{ $stats['ready_participants'] }})
+                                            @else
+                                                Participants Status
+                                            @endif
+                                        </h5>
                                     </div>
-                                    @endif
+                                    <div class="card-body">
+                                        @if ($stats['ready_participants'] == 0)
+                                            <div class="alert alert-warning">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                                No participants are ready yet. Wait for students to click "I'm Ready".
+                                            </div>
+                                        @else
+                                            <div class="table-responsive">
+                                                <table class="table table-striped">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Name</th>
+                                                            <th>University</th>
+                                                            <th>Status</th>
+                                                            <th>Answer</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="participantsTable">
+                                                        @php
+                                                            $readyParticipants = $currentTest->getReadyParticipants();
+                                                        @endphp
+                                                        @foreach ($users as $user)
+                                                            @if (in_array($user->id, $readyParticipants))
+                                                                <tr>
+                                                                    <td>{{ $user->name }}</td>
+                                                                    <td>{{ $user->university ?? 'N/A' }}</td>
+                                                                    <td>
+                                                                        @php
+                                                                            $hasAnswered = \App\Models\Answer::where(
+                                                                                'test_id',
+                                                                                $currentTest->id,
+                                                                            )
+                                                                                ->where('user_id', $user->id)
+                                                                                ->where(
+                                                                                    'question_id',
+                                                                                    $currentTest->current_question_id ??
+                                                                                        0,
+                                                                                )
+                                                                                ->exists();
+                                                                        @endphp
+                                                                        @if ($hasAnswered)
+                                                                            <span
+                                                                                class="badge bg-success">Answered</span>
+                                                                        @else
+                                                                            @if ($currentTest->isWaiting())
+                                                                                <span class="badge bg-info">Ready</span>
+                                                                            @else
+                                                                                <span
+                                                                                    class="badge bg-warning">Waiting</span>
+                                                                            @endif
+                                                                        @endif
+                                                                    </td>
+                                                                    <td>
+                                                                        @if ($hasAnswered)
+                                                                            @php
+                                                                                $answer = \App\Models\Answer::where(
+                                                                                    'test_id',
+                                                                                    $currentTest->id,
+                                                                                )
+                                                                                    ->where('user_id', $user->id)
+                                                                                    ->where(
+                                                                                        'question_id',
+                                                                                        $currentTest->current_question_id ??
+                                                                                            0,
+                                                                                    )
+                                                                                    ->first();
+                                                                            @endphp
+                                                                            {{ $answer->selected_answer ?? 'N/A' }}
+                                                                        @else
+                                                                            <span class="text-muted">-</span>
+                                                                        @endif
+                                                                    </td>
+                                                                </tr>
+                                                            @endif
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
                     @endif
                 </div>
 
@@ -1020,8 +1063,8 @@
                 <!-- Scoreboard (Hidden by default, shown when test ends) -->
                 <div class="scoreboard-container" id="scoreboard-container">
                     <div class="scoreboard-full">
-                                                <!-- Winner Announcement -->
-                            @if($currentTest && $currentTest->isEnded() && $scores->count() > 0)
+                        <!-- Winner Announcement -->
+                        @if ($currentTest && $currentTest->isEnded() && $scores->count() > 0)
                             <div class="row mb-4">
                                 <div class="col-12">
                                     <div class="card bg-gradient bg-success text-white">
@@ -1034,76 +1077,85 @@
                                     </div>
                                 </div>
                             </div>
-                            @endif
+                        @endif
 
-                       
-                     <!-- Scoreboard Table -->
-<div class="card">
-    <div class="card-header">
-        <h5><i class="fas fa-list-ol"></i> Rankings</h5>
-    </div>
-    <div class="card-body">
-        @if($scores->count() > 0)
-            <div class="table-responsive">
-                <table class="table table-striped table-hover scoreboard-table">
-                    <thead class="table-dark">
-                        <tr>
-                            <th width="10%">Rank</th>
-                            <th width="25%">Participant</th>
-                            <th width="20%">University</th>
-                            <th width="15%">Score</th>
-                            <th width="15%">Correct</th>
-                            <th width="15%">Accuracy</th>
-                        </tr>
-                    </thead>
-                    <tbody id="scoreboardBody">
-                        @foreach($scores as $score)
-                        <tr class="{{ $loop->first && $currentTest && $currentTest->isEnded() ? 'table-warning' : '' }}">
-                            <td>
-                                @if($score->rank == 1)
-                                    <span class="badge bg-warning fs-6">🥇 {{ $score->rank }}</span>
-                                @elseif($score->rank == 2)
-                                    <span class="badge bg-secondary fs-6">🥈 {{ $score->rank }}</span>
-                                @elseif($score->rank == 3)
-                                    <span class="badge bg-danger fs-6">🥉 {{ $score->rank }}</span>
+
+                        <!-- Scoreboard Table -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-list-ol"></i> Rankings</h5>
+                            </div>
+                            <div class="card-body">
+                                @if ($scores->count() > 0)
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover scoreboard-table">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th width="10%">Rank</th>
+                                                    <th width="25%">Participant</th>
+                                                    <th width="20%">University</th>
+                                                    <th width="15%">Score</th>
+                                                    <th width="15%">Correct</th>
+                                                    <th width="15%">Accuracy</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="scoreboardBody">
+                                                @foreach ($scores as $score)
+                                                    <tr
+                                                        class="{{ $loop->first && $currentTest && $currentTest->isEnded() ? 'table-warning' : '' }}">
+                                                        <td>
+                                                            @if ($score->rank == 1)
+                                                                <span class="badge bg-warning fs-6">🥇
+                                                                    {{ $score->rank }}</span>
+                                                            @elseif($score->rank == 2)
+                                                                <span class="badge bg-secondary fs-6">🥈
+                                                                    {{ $score->rank }}</span>
+                                                            @elseif($score->rank == 3)
+                                                                <span class="badge bg-danger fs-6">🥉
+                                                                    {{ $score->rank }}</span>
+                                                            @else
+                                                                <span
+                                                                    class="badge bg-dark fs-6">{{ $score->rank }}</span>
+                                                            @endif
+                                                        </td>
+                                                        <td>
+                                                            <strong>{{ $score->user->name }}</strong>
+                                                            @if ($score->rank == 1 && $currentTest && $currentTest->isEnded())
+                                                                <i class="fas fa-crown text-warning ms-1"></i>
+                                                            @endif
+                                                        </td>
+                                                        <td>{{ $score->user->university ?? 'N/A' }}</td>
+                                                        <td>
+                                                            <span
+                                                                class="badge bg-primary fs-6">{{ $score->total_score }}</span>
+                                                        </td>
+                                                        <td>
+                                                            <span
+                                                                class="badge bg-success fs-6">{{ $score->correct_answers }}</span>
+                                                        </td>
+                                                        <td>
+                                                            @if ($score->total_questions > 0)
+                                                                <span
+                                                                    class="badge bg-info fs-6">{{ $score->getAccuracyPercentage() }}%</span>
+                                                            @else
+                                                                <span class="badge bg-secondary fs-6">0%</span>
+                                                            @endif
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 @else
-                                    <span class="badge bg-dark fs-6">{{ $score->rank }}</span>
+                                    <div class="text-center py-5">
+                                        <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                                        <h5 class="text-muted">No scores available</h5>
+                                        <p class="text-muted">Scores will appear here once participants start answering
+                                            questions.</p>
+                                    </div>
                                 @endif
-                            </td>
-                            <td>
-                                <strong>{{ $score->user->name }}</strong>
-                                @if($score->rank == 1 && $currentTest && $currentTest->isEnded())
-                                    <i class="fas fa-crown text-warning ms-1"></i>
-                                @endif
-                            </td>
-                            <td>{{ $score->user->university ?? 'N/A' }}</td>
-                            <td>
-                                <span class="badge bg-primary fs-6">{{ $score->total_score }}</span>
-                            </td>
-                            <td>
-                                <span class="badge bg-success fs-6">{{ $score->correct_answers }}</span>
-                            </td>
-                            <td>
-                                @if($score->total_questions > 0)
-                                    <span class="badge bg-info fs-6">{{ $score->getAccuracyPercentage() }}%</span>
-                                @else
-                                    <span class="badge bg-secondary fs-6">0%</span>
-                                @endif
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @else
-            <div class="text-center py-5">
-                <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">No scores available</h5>
-                <p class="text-muted">Scores will appear here once participants start answering questions.</p>
-            </div>
-        @endif
-    </div>
-</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1134,7 +1186,8 @@
         // Initialize Echo/Pusher
         window.Echo = new Echo({
             broadcaster: 'pusher',
-            key: document.querySelector('meta[name="pusher-key"]')?.getAttribute('content') || '17ec3014a90b3757e007',
+            key: document.querySelector('meta[name="pusher-key"]')?.getAttribute('content') ||
+                '17ec3014a90b3757e007',
             cluster: document.querySelector('meta[name="pusher-cluster"]')?.getAttribute('content') || 'mt1',
             forceTLS: true,
             enableLogging: true
@@ -1377,13 +1430,15 @@
 
                 // Handle ended test
                 if (data.currentTest?.is_ended) {
-                    handleTestEnded({ scoreboard: data.scoreboard });
+                    handleTestEnded({
+                        scoreboard: data.scoreboard
+                    });
                 }
 
                 console.log('Initial data fetched:', data);
             } catch (error) {
                 console.error('Error fetching initial data:', error);
-                 // Show empty state message - data should come from database
+                // Show empty state message - data should come from database
                 updateParticipantsTable([]);
                 elements.totalParticipants.textContent = '0';
                 elements.readyCount.textContent = '0';
@@ -1430,7 +1485,8 @@
                 `;
             });
 
-            elements.participantsTableBody.innerHTML = html || '<tr><td colspan="4" class="text-center text-muted py-4">No participants yet</td></tr>';
+            elements.participantsTableBody.innerHTML = html ||
+                '<tr><td colspan="4" class="text-center text-muted py-4">No participants yet</td></tr>';
         }
 
         // Add or update single participant
@@ -1594,9 +1650,9 @@
                 }
 
                 // Calculate accuracy for this participant (mock)
-                const participantAccuracy = item.correct_answers && item.total_questions
-                    ? Math.round((item.correct_answers / item.total_questions) * 100)
-                    : (item.score > 0 ? Math.min(100, Math.round(item.score * 10)) : 0);
+                const participantAccuracy = item.correct_answers && item.total_questions ?
+                    Math.round((item.correct_answers / item.total_questions) * 100) :
+                    (item.score > 0 ? Math.min(100, Math.round(item.score * 10)) : 0);
 
                 tableHtml += `
                     <tr>
@@ -1621,7 +1677,8 @@
                 `;
             });
 
-            elements.scoreboardBody.innerHTML = tableHtml || '<tr><td colspan="6" class="text-center text-muted py-5"><i class="fas fa-chart-bar fa-3x mb-3"></i><h5 class="text-muted">No scores available</h5><p class="text-muted">Scores will appear here once participants start answering questions.</p></td></tr>';
+            elements.scoreboardBody.innerHTML = tableHtml ||
+                '<tr><td colspan="6" class="text-center text-muted py-5"><i class="fas fa-chart-bar fa-3x mb-3"></i><h5 class="text-muted">No scores available</h5><p class="text-muted">Scores will appear here once participants start answering questions.</p></td></tr>';
         }
 
         // Update stats display
@@ -1639,28 +1696,28 @@
         }
 
         // Auto-refresh for live scoreboard
-@if($currentTest && $currentTest->isActive())
-function updateScoreboard() {
-    fetch('/scoreboard/live')
-        .then(response => response.json())
-        .then(data => {
-            if (data.scores) {
-                updateScoreboardTable(data.scores);
+        @if ($currentTest && $currentTest->isActive())
+            function updateScoreboard() {
+                fetch('/scoreboard/live')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.scores) {
+                            updateScoreboardTable(data.scores);
+                        }
+                    })
+                    .catch(error => console.error('Error updating scoreboard:', error));
             }
-        })
-        .catch(error => console.error('Error updating scoreboard:', error));
-}
 
-function updateScoreboardTable(scores) {
-    const tbody = document.getElementById('scoreboardBody');
-    if (!tbody) return;
-    
-    let html = '';
-    scores.forEach((score, index) => {
-        const rankBadge = getRankBadge(score.rank);
-        const isWinner = score.rank === 1 ? 'table-warning' : '';
-        
-        html += `
+            function updateScoreboardTable(scores) {
+                const tbody = document.getElementById('scoreboardBody');
+                if (!tbody) return;
+
+                let html = '';
+                scores.forEach((score, index) => {
+                    const rankBadge = getRankBadge(score.rank);
+                    const isWinner = score.rank === 1 ? 'table-warning' : '';
+
+                    html += `
             <tr class="${isWinner}">
                 <td>${rankBadge}</td>
                 <td><strong>${score.user_name}</strong>${score.rank === 1 ? ' <i class="fas fa-crown text-warning ms-1"></i>' : ''}</td>
@@ -1670,89 +1727,87 @@ function updateScoreboardTable(scores) {
                 <td><span class="badge bg-info fs-6">${score.accuracy}%</span></td>
             </tr>
         `;
-    });
-    
-    tbody.innerHTML = html;
-}
+                });
 
-function getRankBadge(rank) {
-    if (rank === 1) {
-        return '<span class="badge bg-warning fs-6">🥇 ' + rank + '</span>';
-    } else if (rank === 2) {
-        return '<span class="badge bg-secondary fs-6">🥈 ' + rank + '</span>';
-    } else if (rank === 3) {
-        return '<span class="badge bg-danger fs-6">🥉 ' + rank + '</span>';
-    } else {
-        return '<span class="badge bg-dark fs-6">' + rank + '</span>';
-    }
-}
-// Update scoreboard every 5 seconds
-setInterval(updateScoreboard, 5000);
-@endif
+                tbody.innerHTML = html;
+            }
+
+            function getRankBadge(rank) {
+                if (rank === 1) {
+                    return '<span class="badge bg-warning fs-6">🥇 ' + rank + '</span>';
+                } else if (rank === 2) {
+                    return '<span class="badge bg-secondary fs-6">🥈 ' + rank + '</span>';
+                } else if (rank === 3) {
+                    return '<span class="badge bg-danger fs-6">🥉 ' + rank + '</span>';
+                } else {
+                    return '<span class="badge bg-dark fs-6">' + rank + '</span>';
+                }
+            }
+            // Update scoreboard every 5 seconds
+            setInterval(updateScoreboard, 5000);
+        @endif
 
 
-/**
- * Update entire participants table
- */
-function updateParticipantsTable(participants) {
-    const table = document.getElementById('participantsTable');
-    if (!table) return;
+        /**
+         * Update entire participants table
+         */
+        function updateParticipantsTable(participants) {
+            const table = document.getElementById('participantsTable');
+            if (!table) return;
 
-    const currentTest = {{ $currentTest && $currentTest->isActive() ? 'true' : 'false' }};
-    
-    table.innerHTML = '';
-    
-    participants.forEach(user => {
-        // Only show ready participants if test is waiting
-        if (!currentTest && !user.is_ready) return;
-        
-        const row = document.createElement('tr');
-        
-        let statusBadge = '';
-        if (user.has_answered) {
-            statusBadge = '<span class="badge bg-success">Answered</span>';
-        } else if (user.is_ready) {
-            statusBadge = currentTest 
-                ? '<span class="badge bg-warning">Waiting</span>'
-                : '<span class="badge bg-info">Ready</span>';
-        } else {
-            statusBadge = '<span class="badge bg-secondary">Not Ready</span>';
-        }
-        
-        row.innerHTML = `
+            const currentTest = {{ $currentTest && $currentTest->isActive() ? 'true' : 'false' }};
+
+            table.innerHTML = '';
+
+            participants.forEach(user => {
+                // Only show ready participants if test is waiting
+                if (!currentTest && !user.is_ready) return;
+
+                const row = document.createElement('tr');
+
+                let statusBadge = '';
+                if (user.has_answered) {
+                    statusBadge = '<span class="badge bg-success">Answered</span>';
+                } else if (user.is_ready) {
+                    statusBadge = currentTest ?
+                        '<span class="badge bg-warning">Waiting</span>' :
+                        '<span class="badge bg-info">Ready</span>';
+                } else {
+                    statusBadge = '<span class="badge bg-secondary">Not Ready</span>';
+                }
+
+                row.innerHTML = `
             <td>${user.name}</td>
             <td>${user.university || 'N/A'}</td>
             <td>${statusBadge}</td>
             <td>${user.selected_answer || '-'}</td>
         `;
-        table.appendChild(row);
-    });
-}
-
-/**
- * Update single participant's answer
- */
-function updateParticipantAnswer(userId, selectedAnswer) {
-    const table = document.getElementById('participantsTable');
-    if (!table) return;
-
-    const rows = table.querySelectorAll('tr');
-    rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length >= 4) {
-            const statusCell = cells[2];
-            const answerCell = cells[3];
-            
-            // Update status to answered
-            if (statusCell.querySelector('.badge.bg-warning')) {
-                statusCell.innerHTML = '<span class="badge bg-success">Answered</span>';
-                answerCell.textContent = selectedAnswer;
-            }
+                table.appendChild(row);
+            });
         }
-    });
-}
 
+        /**
+         * Update single participant's answer
+         */
+        function updateParticipantAnswer(userId, selectedAnswer) {
+            const table = document.getElementById('participantsTable');
+            if (!table) return;
 
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 4) {
+                    const statusCell = cells[2];
+                    const answerCell = cells[3];
+
+                    // Update status to answered
+                    if (statusCell.querySelector('.badge.bg-warning')) {
+                        statusCell.innerHTML = '<span class="badge bg-success">Answered</span>';
+                        answerCell.textContent = selectedAnswer;
+                    }
+                }
+            });
+        }
     </script>
 </body>
 
