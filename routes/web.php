@@ -65,7 +65,9 @@ Route::middleware(['role:exam_manager'])->group(function () {
 
     Route::get('/exam-manager/users-status', [ExamManagerController::class, 'showUsersStatus'])
         ->name('exam-manager.users-status');
-
+  // Poll for real-time updates
+    Route::get('/exam-manager/poll', [ExamManagerController::class, 'pollForUpdates'])
+        ->name('exam-manager.poll');
     // ✅ Results routes (exam-manager only)
     Route::get('/results/participants', [ResultsController::class, 'participants'])
         ->name('results.participants');

@@ -327,4 +327,140 @@ class ExamManagerController extends Controller
             'total_questions' => Question::count(),
         ];
     }
+    
+    /**
+     * Poll for real-time updates for the exam manager dashboard.
+     * This endpoint provides fresh data for dynamic UI updates without page refresh.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function pollForUpdates()
+    {
+        try {
+            $currentTest = Test::whereIn('status', ['waiting', 'active', 'ended'])->latest()->first();
+            $users = User::where('role', 'user')->get();
+            $totalQuestions = Question::count();
+            
+            // Get ready participants
+            $readyParticipants = [];
+            $readyCount = 0;
+            $answeredCount = 0;
+            $currentQuestion = null;
+            $testStatus = 'none';
+            
+            if ($currentTest) {
+                $testStatus = $currentTest->status;
+                $readyParticipants = $currentTest->getReadyParticipants() ?? [];
+                $readyCount = count($readyParticipants);
+                
+                // Get current question if exists
+                if ($currentTest->current_question_id) {
+                    $currentQuestion = Question::find($currentTest->current_question_id);
+                    $answeredCount = Answer::where('test_id', $currentTest->id)
+                        ->where('question_id', $currentTest->current_question_id)
+                        ->count();
+                }
+            }
+            
+            // Build participants data
+            $participants = [];
+            foreach ($users as $user) {
+                // Only include ready participants if test is waiting
+                if ($testStatus === 'waiting' && !in_array($user->id, $readyParticipants)) {
+                    continue;
+                }
+                
+                $hasAnswered = false;
+                $selectedAnswer = null;
+                
+                // Check if user has answered current question
+                if ($currentTest && $currentTest->current_question_id && $testStatus === 'active') {
+                    $answer = Answer::where('test_id', $currentTest->id)
+                        ->where('user_id', $user->id)
+                        ->where('question_id', $currentTest->current_question_id)
+                        ->first();
+                    
+                    if ($answer) {
+                        $hasAnswered = true;
+                        $selectedAnswer = $answer->selected_answer;
+                    }
+                }
+                
+                // Determine status
+                $status = 'not_ready';
+                if ($testStatus === 'waiting' && in_array($user->id, $readyParticipants)) {
+                    $status = 'ready';
+                } elseif ($testStatus === 'active' && in_array($user->id, $readyParticipants)) {
+                    $status = $hasAnswered ? 'answered' : 'waiting';
+                } elseif ($testStatus === 'ended') {
+                    $status = 'ended';
+                }
+                
+                $participants[] = [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'university' => $user->university ?? 'N/A',
+                    'is_ready' => in_array($user->id, $readyParticipants),
+                    'has_answered' => $hasAnswered,
+                    'selected_answer' => $selectedAnswer,
+                    'status' => $status
+                ];
+            }
+            
+            // Build response
+            $response = [
+                'test' => $currentTest ? [
+                    'id' => $currentTest->id,
+                    'status' => $testStatus,
+                    'current_question_id' => $currentTest->current_question_id,
+                    'question_start_time' => $currentTest->question_start_time,
+                    'is_waiting' => $testStatus === 'waiting',
+                    'is_active' => $testStatus === 'active',
+                    'is_ended' => $testStatus === 'ended'
+                ] : null,
+                'stats' => [
+                    'waiting_users' => $users->count(),
+                    'ready_participants' => $readyCount,
+                    'answered_questions' => $answeredCount,
+                    'total_questions' => $totalQuestions
+                ],
+                'current_question' => $currentQuestion ? [
+                    'id' => $currentQuestion->id,
+                    'title' => $currentQuestion->title,
+                    'option_a' => $currentQuestion->option_a,
+                    'option_b' => $currentQuestion->option_b,
+                    'option_c' => $currentQuestion->option_c,
+                    'option_d' => $currentQuestion->option_d,
+                    'correct_answer' => $currentQuestion->correct_answer,
+                    'time_limit' => 35,
+                    'question_number' => $currentQuestion->question_number ?? 1
+                ] : null,
+                'participants' => $participants
+            ];
+            
+            // Broadcast update event
+            try {
+                if ($currentTest && function_exists('broadcast')) {
+                    $stats = [
+                        'ready_participants' => $readyCount,
+                        'answered_questions' => $answeredCount,
+                        'total_questions' => $totalQuestions,
+                        'waiting_users' => $users->count()
+                    ];
+                    broadcast(new TestUpdated($currentTest, $participants, $stats));
+                }
+            } catch (\Exception $e) {
+                \Log::error('Broadcast failed in pollForUpdates: ' . $e->getMessage());
+            }
+            
+            return response()->json($response);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error in pollForUpdates: ' . $e->getMessage() . ' - ' . $e->getTraceAsString());
+            return response()->json([
+                'error' => 'Failed to fetch updates',
+                'message' => 'Internal server error'
+            ], 500);
+        }
+    }
 }
