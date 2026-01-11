@@ -1179,7 +1179,7 @@
             timeRemaining: 0,
             timerInterval: null,
             isEnded: false,
-            participants: [],
+            participants: @json($participantsData ?? []),
             correctAnswer: null,
             hasTimeExpired: false
         };
@@ -1203,7 +1203,7 @@
             currentQuestion: document.getElementById('current-question'),
             timeRemaining: document.getElementById('time-remaining'),
             participantCountBadge: document.getElementById('participant-count-badge'),
-            participantsTableBody: document.getElementById('participants-table-body'),
+            participantsTable: document.getElementById('participantsTable'),
             waitingState: document.getElementById('waiting-state'),
             questionContent: document.getElementById('question-content'),
             questionNumber: document.getElementById('question-number'),
@@ -1220,15 +1220,25 @@
         // Initialize application
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Guest Landing Page initialized');
+            console.log('Initial participants:', state.participants.length);
 
+            // Update table with initial data from Blade template immediately
+            if (state.participants.length > 0) {
+                updateParticipantsTable(state.participants);
+            }
+
+            // Initialize stats from Blade template
+            if (elements.participantCountBadge) {
+                elements.participantCountBadge.textContent = {{ $stats['ready_participants'] ?? 0 }};
+            }
             // Subscribe to Pusher events
             subscribeToChannel();
-
-            // Fetch initial data
+            // Fetch fresh data from server immediately
             fetchInitialData();
 
-            // Start auto-refresh for data
-            setInterval(fetchInitialData, 5000);
+
+            // Start polling for updates every 2 seconds (triggers TestUpdated event)
+            setInterval(fetchInitialData, 2000);
         });
 
         // Subscribe to Pusher channel
@@ -1290,41 +1300,60 @@
         }
 
         function handleTestUpdated(data) {
-            if (data.stats) {
-                elements.totalParticipants.textContent = data.stats.total_users || 0;
-                elements.readyCount.textContent = data.stats.ready_participants || 0;
-            }
+            console.log('📊 TestUpdated event received:', data);
 
+            // Update participants from event data
             if (data.participants && Array.isArray(data.participants)) {
+                state.participants = data.participants;
                 updateParticipantsTable(data.participants);
+                console.log('✅ Updated ' + data.participants.length + ' participants');
             }
 
-            // Handle question data from TestUpdated event (includes correct_answer)
-            if (data.question) {
-                const questionData = {
-                    ...data.question,
-                    question_start_time: data.test?.question_start_time || data.question_start_time,
-                    time_limit: data.test?.time_limit || data.time_limit || 35
-                };
-                handleQuestionStarted(questionData);
+            // Update stats
+            if (data.stats) {
+                if (elements.participantCountBadge) {
+                    elements.participantCountBadge.textContent = data.stats.ready_participants || 0;
+                }
+                if (elements.readyCount) {
+                    elements.readyCount.textContent = data.stats.ready_participants || 0;
+                }
             }
         }
 
         function handleParticipantReady(data) {
-            if (data.ready_count !== undefined) {
+            console.log('👤 ParticipantReady event:', data);
+
+            if (data.ready_count !== undefined && elements.readyCount) {
                 elements.readyCount.textContent = data.ready_count;
+            }
+            if (data.ready_count !== undefined && elements.participantCountBadge) {
+                elements.participantCountBadge.textContent = data.ready_count;
             }
 
             // Add or update participant in the list
             if (data.user_name) {
-                addOrUpdateParticipant({
+                const newParticipant = {
                     id: data.user_id,
                     name: data.user_name,
                     university: data.university || 'N/A',
                     status: 'ready',
                     has_answered: false,
                     selected_answer: null
-                });
+                };
+
+                // Check if participant already exists
+                const existingIndex = state.participants.findIndex(p => p.id === data.user_id);
+                if (existingIndex >= 0) {
+                    // Update existing participant
+                    state.participants[existingIndex] = newParticipant;
+                } else {
+                    // Add new participant
+                    state.participants.push(newParticipant);
+                }
+
+                // Update the table
+                updateParticipantsTable(state.participants);
+                console.log('✅ Participant added/updated:', data.user_name);
             }
         }
 
@@ -1369,8 +1398,19 @@
         }
 
         function handleAnswerReceived(data) {
+            console.log('✅ AnswerReceived event:', data);
+
             // Update participant's answer status in table
-            updateParticipantAnswer(data.user_id, data.selected_answer);
+            if (data.user_id) {
+                const participant = state.participants.find(p => p.id === data.user_id);
+                if (participant) {
+                    participant.has_answered = true;
+                    participant.selected_answer = data.selected_answer || data.answer;
+                    participant.status = 'answered';
+                    updateParticipantsTable(state.participants);
+                    console.log('✅ Participant marked as answered');
+                }
+            }
         }
 
         function handleTestEnded(data) {
@@ -1403,53 +1443,81 @@
         }
 
         // Fetch initial data from server
+        let consecutiveErrors = 0;
+        const maxErrorsBeforePause = 3;
+        let pollingPaused = false;
+        let retryTimeout = null;
         async function fetchInitialData() {
+            // Don't poll if we've paused due to errors
+            if (pollingPaused) {
+                return;
+            }
+
             try {
-                const response = await axios.get('/guest/data');
-                const data = response.data;
+                // Call polling endpoint which broadcasts TestUpdated event
+                const response = await axios.get('/guest/poll');
+                consecutiveErrors = 0;
+                console.log('Polling successful');
 
-                // Update stats
-                if (data.stats) {
-                    elements.totalParticipants.textContent = data.stats.total_users || 0;
-                    elements.readyCount.textContent = data.stats.ready_participants || 0;
+                // If we received data, update the UI
+                if (response.data && response.data.participants) {
+                    state.participants = response.data.participants;
+                    updateParticipantsTable(response.data.participants);
+
+                    // Update stats if available
+                    if (response.data.stats) {
+                        if (elements.participantCountBadge) {
+                            elements.participantCountBadge.textContent = response.data.stats.ready_participants || 0;
+                        }
+                    }
                 }
-
-                // Update participants
-                if (data.participants) {
-                    state.participants = data.participants;
-                    updateParticipantsTable(data.participants);
-                }
-
-                // Handle active question
-                if (data.currentQuestion && data.currentTest?.is_active) {
-                    handleQuestionStarted({
-                        ...data.currentQuestion,
-                        question_start_time: data.currentTest.question_start_time,
-                        time_limit: data.currentTest.time_limit || 35
-                    });
-                }
-
-                // Handle ended test
-                if (data.currentTest?.is_ended) {
-                    handleTestEnded({
-                        scoreboard: data.scoreboard
-                    });
-                }
-
-                console.log('Initial data fetched:', data);
             } catch (error) {
-                console.error('Error fetching initial data:', error);
-                // Show empty state message - data should come from database
-                updateParticipantsTable([]);
-                elements.totalParticipants.textContent = '0';
-                elements.readyCount.textContent = '0';
+                consecutiveErrors++;
+                console.error('Polling error (attempt ' + consecutiveErrors + '):', error.message);
+
+                // Show error in console with more details
+                if (error.response) {
+                    console.error('Server responded with:', error.response.status, error.response.data);
+                }
+
+                // Pause polling if too many consecutive errors
+                if (consecutiveErrors >= maxErrorsBeforePause) {
+                    pollingPaused = true;
+                    console.warn('Too many consecutive polling errors, pausing...');
+
+                    // Try to recover after 30 seconds
+                    retryTimeout = setTimeout(() => {
+                        console.log('Attempting to resume polling...');
+                        consecutiveErrors = 0;
+                        pollingPaused = false;
+                        fetchInitialData();
+                    }, 30000);
+                }
             }
         }
 
+        // Update participants table from state
+        function updateFromState() {
+            if (state.participants && Array.isArray(state.participants)) {
+                updateParticipantsTable(state.participants);
+
+                // Update stats
+                const readyCount = state.participants.filter(p => p.status === 'ready' || p.status === 'waiting' || p
+                    .status === 'answered').length;
+                if (elements.participantCountBadge) {
+                    elements.participantCountBadge.textContent = readyCount;
+                }
+            }
+        }
         // Update participants table
         function updateParticipantsTable(participants) {
             state.participants = participants;
             elements.participantCountBadge.textContent = participants.length;
+
+            if (!elements.participantsTable) {
+                console.warn('Participants table element not found');
+                return;
+            }
 
             let html = '';
             participants.forEach(participant => {
@@ -1486,8 +1554,8 @@
                 `;
             });
 
-            elements.participantsTableBody.innerHTML = html ||
-                '<tr><td colspan="4" class="text-center text-muted py-4">No participants yet</td></tr>';
+            elements.participantsTable.innerHTML = html ||
+                '<tr><td colspan="4" class="text-center text-muted py-4">No participants yet. Waiting for participants to join...</td></tr>';
         }
 
         // Add or update single participant
@@ -1696,120 +1764,6 @@
             const div = document.createElement('div');
             div.textContent = text || '';
             return div.innerHTML;
-        }
-
-        // Auto-refresh for live scoreboard
-        @if ($currentTest && $currentTest->isActive())
-            function updateScoreboard() {
-                fetch('/scoreboard/live')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.scores) {
-                            updateScoreboardTable(data.scores);
-                        }
-                    })
-                    .catch(error => console.error('Error updating scoreboard:', error));
-            }
-
-            function updateScoreboardTable(scores) {
-                const tbody = document.getElementById('scoreboardBody');
-                if (!tbody) return;
-
-                let html = '';
-                scores.forEach((score, index) => {
-                    const rankBadge = getRankBadge(score.rank);
-                    const isWinner = score.rank === 1 ? 'table-warning' : '';
-
-                    html += `
-            <tr class="${isWinner}">
-                <td>${rankBadge}</td>
-                <td><strong>${score.user_name}</strong>${score.rank === 1 ? ' <i class="fas fa-crown text-warning ms-1"></i>' : ''}</td>
-                <td>${score.university || 'N/A'}</td>
-                <td><span class="badge bg-primary fs-6">${score.total_score}</span></td>
-                <td><span class="badge bg-success fs-6">${score.correct_answers}</span></td>
-                <td><span class="badge bg-info fs-6">${score.accuracy}%</span></td>
-            </tr>
-        `;
-                });
-
-                tbody.innerHTML = html;
-            }
-
-            function getRankBadge(rank) {
-                if (rank === 1) {
-                    return '<span class="badge bg-warning fs-6">🥇 ' + rank + '</span>';
-                } else if (rank === 2) {
-                    return '<span class="badge bg-secondary fs-6">🥈 ' + rank + '</span>';
-                } else if (rank === 3) {
-                    return '<span class="badge bg-danger fs-6">🥉 ' + rank + '</span>';
-                } else {
-                    return '<span class="badge bg-dark fs-6">' + rank + '</span>';
-                }
-            }
-            // Update scoreboard every 5 seconds
-            setInterval(updateScoreboard, 5000);
-        @endif
-
-
-        /**
-         * Update entire participants table
-         */
-        function updateParticipantsTable(participants) {
-            const table = document.getElementById('participantsTable');
-            if (!table) return;
-
-            const currentTest = {{ $currentTest && $currentTest->isActive() ? 'true' : 'false' }};
-
-            table.innerHTML = '';
-
-            participants.forEach(user => {
-                // Only show ready participants if test is waiting
-                if (!currentTest && !user.is_ready) return;
-
-                const row = document.createElement('tr');
-
-                let statusBadge = '';
-                if (user.has_answered) {
-                    statusBadge = '<span class="badge bg-success">Answered</span>';
-                } else if (user.is_ready) {
-                    statusBadge = currentTest ?
-                        '<span class="badge bg-warning">Waiting</span>' :
-                        '<span class="badge bg-info">Ready</span>';
-                } else {
-                    statusBadge = '<span class="badge bg-secondary">Not Ready</span>';
-                }
-
-                row.innerHTML = `
-            <td>${user.name}</td>
-            <td>${user.university || 'N/A'}</td>
-            <td>${statusBadge}</td>
-            <td>${user.selected_answer || '-'}</td>
-        `;
-                table.appendChild(row);
-            });
-        }
-
-        /**
-         * Update single participant's answer
-         */
-        function updateParticipantAnswer(userId, selectedAnswer) {
-            const table = document.getElementById('participantsTable');
-            if (!table) return;
-
-            const rows = table.querySelectorAll('tr');
-            rows.forEach(row => {
-                const cells = row.querySelectorAll('td');
-                if (cells.length >= 4) {
-                    const statusCell = cells[2];
-                    const answerCell = cells[3];
-
-                    // Update status to answered
-                    if (statusCell.querySelector('.badge.bg-warning')) {
-                        statusCell.innerHTML = '<span class="badge bg-success">Answered</span>';
-                        answerCell.textContent = selectedAnswer;
-                    }
-                }
-            });
         }
     </script>
 </body>

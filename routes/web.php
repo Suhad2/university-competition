@@ -81,3 +81,6 @@ Route::get('/', [GuestController::class, 'index'])->name('guest');
 
 // Guest data endpoint - for real-time updates
 Route::get('/guest/data', [GuestController::class, 'getData'])->name('guest.data');
+
+// Guest polling endpoint - broadcasts updates via Pusher
+Route::get('/guest/poll', [GuestController::class, 'pollForUpdates'])->name('guest.poll');

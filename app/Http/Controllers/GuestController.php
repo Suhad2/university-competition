@@ -7,12 +7,14 @@ use App\Models\User;
 use App\Models\Answer;
 use App\Models\Question;
 use App\Models\Score;
-use Illuminate\Http\JsonResponse;
+use App\Events\TestUpdated;
+use App\Events\ParticipantReady;
+use App\Events\AnswerReceived;
 use Illuminate\Http\Request;
 
 class GuestController extends Controller
 {
-        /**
+    /**
      * Display the guest landing page.
      *
      * @return \Illuminate\View\View
@@ -21,8 +23,8 @@ class GuestController extends Controller
     {
         $currentTest = Test::latest()->first();
         
-        // Get all users (participants)
-        $users = User::where('role', 'participant')->get();
+        // Get all users (participants) - consistent with getData() method
+        $users = User::where('role', 'user')->get();
         
         // Get scores for current test
         $scores = collect();
@@ -103,14 +105,126 @@ class GuestController extends Controller
         
         return view('index', compact('currentTest', 'users', 'scores', 'stats', 'readyParticipants', 'participantsData'));
     }
+    
+    /**
+     * Poll for changes and broadcast updates via Pusher.
+     * This endpoint is called by the guest page JavaScript to get real-time updates.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function pollForUpdates()
+    {
+        try {
+            $currentTest = Test::latest()->first();
+
+            // If no test exists, return empty data
+            if (!$currentTest) {
+                return response()->json([
+                    'stats' => ['total_users' => 0, 'ready_participants' => 0],
+                    'participants' => [],
+                    'no_changes' => true
+                ]);
+            }
+
+            $users = User::where('role', 'user')->get();
+            
+            // Safely get ready participants
+            $readyParticipants = [];
+            if (method_exists($currentTest, 'getReadyParticipants')) {
+                $readyParticipants = $currentTest->getReadyParticipants() ?? [];
+            }
+            $readyCount = count($readyParticipants);
+
+            // Build participants data
+            $participants = [];
+            foreach ($users as $user) {
+                // Only include ready participants if test is waiting
+                if ($currentTest->isWaiting() && !in_array($user->id, $readyParticipants)) {
+                    continue;
+                }
+
+                $hasAnswered = false;
+                $selectedAnswer = null;
+
+                // Check for answers
+                if ($currentTest->current_question_id && $currentTest->isActive()) {
+                    $answer = Answer::where('test_id', $currentTest->id)
+                        ->where('user_id', $user->id)
+                        ->where('question_id', $currentTest->current_question_id)
+                        ->first();
+
+                    if ($answer) {
+                        $hasAnswered = true;
+                        $selectedAnswer = $answer->selected_answer;
+                    }
+                }
+
+                // Determine status
+                $status = 'waiting';
+                if ($currentTest->isWaiting()) {
+                    $status = 'ready';
+                } elseif ($currentTest->isActive() && in_array($user->id, $readyParticipants)) {
+                    $status = $hasAnswered ? 'answered' : 'waiting';
+                } elseif ($currentTest->isEnded()) {
+                    $status = 'ended';
+                }
+
+                $participants[] = [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'university' => $user->university ?? 'N/A',
+                    'status' => $status,
+                    'has_answered' => $hasAnswered,
+                    'selected_answer' => $selectedAnswer,
+                ];
+            }
+
+            $stats = [
+                'total_users' => $users->count(),
+                'ready_participants' => $readyCount,
+                'total_questions' => Question::count() ?? 0,
+            ];
+
+            // Get the test status
+            $testStatus = $currentTest->status ?? 'waiting';
+
+            // Attempt to broadcast TestUpdated event (optional - won't fail if broadcasting not configured)
+            try {
+                if (function_exists('broadcast')) {
+                    broadcast(new TestUpdated($testStatus, $participants, $stats));
+                }
+            } catch (\Exception $broadcastException) {
+                // Log broadcast error but don't fail the request
+                \Log::error('Broadcast failed in pollForUpdates: ' . $broadcastException->getMessage());
+            }
+
+            return response()->json([
+                'stats' => $stats,
+                'participants' => $participants,
+                'no_changes' => false
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error in pollForUpdates: ' . $e->getMessage() . ' - ' . $e->getTraceAsString());
+            
+            // Return a simple error response
+            return response()->json([
+                'error' => 'Failed to fetch updates',
+                'message' => 'Internal server error',
+                'stats' => ['total_users' => 0, 'ready_participants' => 0],
+                'participants' => [],
+                'no_changes' => true
+            ], 500);
+        }
+    }
+    
     /**
      * Get competition data for real-time updates.
      *
-     * @return JsonResponse
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function getData(): JsonResponse
+    public function getData()
     {
-        // ... (getData method remains unchanged)
         try {
             // Get the current test
             $currentTest = Test::latest()->first();
@@ -249,8 +363,11 @@ class GuestController extends Controller
                     'is_ended' => false
                 ];
             } elseif ($currentTest->isActive()) {
+                // Handle question_start_time safely
                 $questionStartTime = $currentTest->question_start_time 
-                    ? strtotime($currentTest->question_start_time) 
+                    ? (is_numeric($currentTest->question_start_time) 
+                        ? (int)$currentTest->question_start_time 
+                        : strtotime($currentTest->question_start_time))
                     : time();
 
                 $response['currentTest'] = [
@@ -274,10 +391,10 @@ class GuestController extends Controller
             return response()->json($response);
 
         } catch (\Exception $e) {
+            \Log::error('Error in getData: ' . $e->getMessage() . ' - ' . $e->getTraceAsString());
             return response()->json([
                 'error' => 'Failed to fetch competition data',
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'message' => 'Internal server error'
             ], 500);
         }
     }
