@@ -35,20 +35,18 @@ class DatabaseSeeder extends Seeder
 
         // Create Sample University Users
         $universities = [
-            'Harvard University',
-            'MIT',
-            'Stanford University',
-            'University of Cambridge',
-            'Oxford University',
-            'UC Berkeley',
-            'Carnegie Mellon',
-            'Princeton University',
+            'Al-Zahraa University for Women ',
+            'University of Kerbala',
+            'University of Baghdad',
+            'University of Kufa',
+            
+        
         ];
 
         foreach ($universities as $university) {
             User::create([
                 'name' => 'Student from ' . $university,
-                'email' => strtolower(str_replace(' ', '.', $university)) . '@student.com',
+                'email' => strtolower(str_replace(' ', '.', $university)) . '@university.com',
                 'password' => bcrypt('password'),
                 'role' => 'user',
                 'university' => $university,
