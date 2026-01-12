@@ -1188,6 +1188,127 @@ correctAnswer: null,
 hasTimeExpired: false
 };
 
+// LocalStorage key for question persistence
+const QUESTION_STATE_KEY = 'guest_question_state';
+
+// Save question state to localStorage
+function saveQuestionState() {
+if (state.currentQuestion && !state.isEnded) {
+const questionState = {
+question: state.currentQuestion,
+questionStartTime: state.questionStartTime,
+timeLimit: state.timeLimit,
+timeRemaining: state.timeRemaining,
+correctAnswer: state.correctAnswer,
+hasTimeExpired: state.hasTimeExpired,
+savedAt: Date.now()
+};
+localStorage.setItem(QUESTION_STATE_KEY, JSON.stringify(questionState));
+console.log('Question state saved to localStorage:', questionState);
+}
+}
+
+// Restore question state from localStorage
+function restoreQuestionState() {
+const savedState = localStorage.getItem(QUESTION_STATE_KEY);
+if (savedState) {
+try {
+const questionState = JSON.parse(savedState);
+console.log('Restoring question state from localStorage:', questionState);
+
+// Check if the saved state is still valid (not too old)
+const timeSinceSave = Date.now() - (questionState.savedAt || 0);
+const maxAge = 5 * 60 * 1000; // 5 minutes max
+
+if (timeSinceSave < maxAge && questionState.question) {
+// Restore the state
+state.currentQuestion = questionState.question;
+state.questionStartTime = questionState.questionStartTime;
+state.timeLimit = questionState.timeLimit || 35;
+state.correctAnswer = questionState.correctAnswer;
+state.hasTimeExpired = questionState.hasTimeExpired || false;
+
+// Calculate remaining time based on elapsed time since save
+const elapsedSinceSave = Math.floor((Date.now() - questionState.savedAt) / 1000);
+state.timeRemaining = Math.max(0, (questionState.timeRemaining || questionState.timeLimit) - elapsedSinceSave);
+
+// Update UI to show the question
+updateQuestionDisplay(state.currentQuestion);
+
+// Start timer with restored remaining time
+restoreTimer();
+
+// If time had already expired when saved, show correct answer
+if (state.hasTimeExpired && state.correctAnswer) {
+setTimeout(() => {
+highlightCorrectAnswer(state.correctAnswer);
+}, 100);
+}
+
+console.log('Question state restored successfully');
+} else {
+console.log('Saved question state is too old or invalid, clearing...');
+clearQuestionState();
+}
+} catch (e) {
+console.error('Error restoring question state:', e);
+clearQuestionState();
+}
+}
+}
+
+// Clear question state from localStorage
+function clearQuestionState() {
+localStorage.removeItem(QUESTION_STATE_KEY);
+console.log('Question state cleared from localStorage');
+}
+
+// Update question display without starting timer (used when restoring)
+function updateQuestionDisplay(question) {
+if (!question) return;
+
+// Show question content
+elements.waitingState.style.display = 'none';
+elements.questionContent.style.display = 'block';
+
+// Update question display
+elements.questionNumber.textContent = question.question_number || '1';
+elements.questionText.textContent = question.title;
+elements.currentQuestion.textContent = '#' + (question.question_number || '1');
+
+// Update options
+document.getElementById('option-a').textContent = question.option_a;
+document.getElementById('option-b').textContent = question.option_b;
+document.getElementById('option-c').textContent = question.option_c;
+document.getElementById('option-d').textContent = question.option_d;
+}
+
+// Restore timer with remaining time
+function restoreTimer() {
+// Update displays with restored remaining time
+updateTimerDisplay();
+elements.timeRemaining.textContent = state.timeRemaining + 's';
+
+// Clear existing timer
+if (state.timerInterval) {
+clearInterval(state.timerInterval);
+}
+
+// Start countdown with restored remaining time
+state.timerInterval = setInterval(() => {
+state.timeRemaining--;
+updateTimerDisplay();
+elements.timeRemaining.textContent = state.timeRemaining + 's';
+
+// Save state periodically
+saveQuestionState();
+
+if (state.timeRemaining <= 0) {
+handleTimeUp();
+}
+}, 1000);
+}
+
 // Initialize Echo/Pusher
 window.Echo = new Echo({
 broadcaster: 'pusher',
@@ -1235,6 +1356,10 @@ updateParticipantsTable(state.participants);
 if (elements.participantCountBadge) {
 elements.participantCountBadge.textContent = {{ $stats['ready_participants'] ?? 0 }};
 }
+
+// Restore question state from localStorage (in case of page refresh)
+restoreQuestionState();
+
 // Subscribe to Pusher events
 subscribeToChannel();
 // Fetch fresh data from server immediately
@@ -1382,23 +1507,14 @@ console.log('Correct answer from parent:', data.correct_answer);
 // Clear previous correct answer highlighting
 clearCorrectAnswerHighlighting();
 
-// Show question content
-elements.waitingState.style.display = 'none';
-elements.questionContent.style.display = 'block';
-
 // Update question display
-elements.questionNumber.textContent = question.question_number || '1';
-elements.questionText.textContent = question.title;
-elements.currentQuestion.textContent = '#' + (question.question_number || '1');
-
-// Update options
-document.getElementById('option-a').textContent = question.option_a;
-document.getElementById('option-b').textContent = question.option_b;
-document.getElementById('option-c').textContent = question.option_c;
-document.getElementById('option-d').textContent = question.option_d;
+updateQuestionDisplay(question);
 
 // Start timer
 startTimer();
+
+// Save question state to localStorage for persistence on refresh
+saveQuestionState();
 }
 
 function handleAnswerReceived(data) {
@@ -1438,6 +1554,9 @@ elements.scoreboardContainer.style.display = 'block';
 elements.scoreboardContainer.classList.add('active');
 elements.contentWrapper.classList.add('ended-mode');
 
+// Clear question state from localStorage
+clearQuestionState();
+
 // Generate scoreboard from available data
 if (data && (data.scoreboard || data.scores)) {
 // Use scoreboard/scores from event data
@@ -1463,78 +1582,78 @@ fetchScoreboardFromServer();
 }
 }
 
-        // Fetch initial data from server
-        let consecutiveErrors = 0;
-        const maxErrorsBeforePause = 3;
-        let pollingPaused = false;
-        let retryTimeout = null;
-        async function fetchInitialData() {
-            // Don't poll if we've paused due to errors
-            if (pollingPaused) {
-                return;
-            }
+// Fetch initial data from server
+let consecutiveErrors = 0;
+const maxErrorsBeforePause = 3;
+let pollingPaused = false;
+let retryTimeout = null;
+async function fetchInitialData() {
+// Don't poll if we've paused due to errors
+if (pollingPaused) {
+return;
+}
 
-            try {
-                // Call polling endpoint which broadcasts TestUpdated event
-                const response = await axios.get('/guest/poll');
-                consecutiveErrors = 0;
-                console.log('Polling successful');
+try {
+// Call polling endpoint which broadcasts TestUpdated event
+const response = await axios.get('/guest/poll');
+consecutiveErrors = 0;
+console.log('Polling successful');
 
-                // If we received data, update the UI
-                if (response.data && response.data.participants) {
-                    state.participants = response.data.participants;
-                    updateParticipantsTable(response.data.participants);
+// If we received data, update the UI
+if (response.data && response.data.participants) {
+state.participants = response.data.participants;
+updateParticipantsTable(response.data.participants);
 
-                    // Update stats if available
-                    if (response.data.stats) {
-                        if (elements.participantCountBadge) {
-                            elements.participantCountBadge.textContent = response.data.stats.ready_participants || 0;
-                        }
-                    }
+// Update stats if available
+if (response.data.stats) {
+if (elements.participantCountBadge) {
+elements.participantCountBadge.textContent = response.data.stats.ready_participants || 0;
+}
+}
 
-                    // Check if test has ended and show scoreboard
-                    if (response.data.currentTest && response.data.currentTest.is_ended && !state.isEnded) {
-                        console.log('Test has ended, showing scoreboard...');
-                        
-                        // Fetch scoreboard data from server
-                        try {
-                            const scoreboardResponse = await axios.get('/guest/data');
-                            if (scoreboardResponse.data && scoreboardResponse.data.scoreboard) {
-                                handleTestEnded({
-                                    scoreboard: scoreboardResponse.data.scoreboard
-                                });
-                            }
-                        } catch (scoreboardError) {
-                            console.error('Error fetching scoreboard:', scoreboardError.message);
-                            // Still show scoreboard even without data
-                            handleTestEnded({});
-                        }
-                    }
-                }
-            } catch (error) {
-                consecutiveErrors++;
-                console.error('Polling error (attempt ' + consecutiveErrors + '):', error.message);
+// Check if test has ended and show scoreboard
+if (response.data.currentTest && response.data.currentTest.is_ended && !state.isEnded) {
+console.log('Test has ended, showing scoreboard...');
 
-                // Show error in console with more details
-                if (error.response) {
-                    console.error('Server responded with:', error.response.status, error.response.data);
-                }
+// Fetch scoreboard data from server
+try {
+const scoreboardResponse = await axios.get('/guest/data');
+if (scoreboardResponse.data && scoreboardResponse.data.scoreboard) {
+handleTestEnded({
+scoreboard: scoreboardResponse.data.scoreboard
+});
+}
+} catch (scoreboardError) {
+console.error('Error fetching scoreboard:', scoreboardError.message);
+// Still show scoreboard even without data
+handleTestEnded({});
+}
+}
+}
+} catch (error) {
+consecutiveErrors++;
+console.error('Polling error (attempt ' + consecutiveErrors + '):', error.message);
 
-                // Pause polling if too many consecutive errors
-                if (consecutiveErrors >= maxErrorsBeforePause) {
-                    pollingPaused = true;
-                    console.warn('Too many consecutive polling errors, pausing...');
+// Show error in console with more details
+if (error.response) {
+console.error('Server responded with:', error.response.status, error.response.data);
+}
 
-                    // Try to recover after 30 seconds
-                    retryTimeout = setTimeout(() => {
-                        console.log('Attempting to resume polling...');
-                        consecutiveErrors = 0;
-                        pollingPaused = false;
-                        fetchInitialData();
-                    }, 30000);
-                }
-            }
-        }
+// Pause polling if too many consecutive errors
+if (consecutiveErrors >= maxErrorsBeforePause) {
+pollingPaused = true;
+console.warn('Too many consecutive polling errors, pausing...');
+
+// Try to recover after 30 seconds
+retryTimeout = setTimeout(() => {
+console.log('Attempting to resume polling...');
+consecutiveErrors = 0;
+pollingPaused = false;
+fetchInitialData();
+}, 30000);
+}
+}
+}
 
 // Fetch scoreboard data from server (used when test ends)
 async function fetchScoreboardFromServer() {
