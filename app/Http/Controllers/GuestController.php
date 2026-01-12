@@ -4,13 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Test;
 use App\Models\User;
+use App\Models\Score;
 use App\Models\Answer;
 use App\Models\Question;
-use App\Models\Score;
 use App\Events\TestUpdated;
-use App\Events\ParticipantReady;
-use App\Events\AnswerReceived;
 use Illuminate\Http\Request;
+use App\Events\AnswerReceived;
+use App\Events\ParticipantReady;
+use Illuminate\Support\Facades\Log;
 
 class GuestController extends Controller
 {
@@ -139,9 +140,10 @@ class GuestController extends Controller
             $participants = [];
             foreach ($users as $user) {
                 // Only include ready participants if test is waiting
-                if ($currentTest->isWaiting() && !in_array($user->id, $readyParticipants)) {
-                    continue;
-                }
+               if ($currentTest->isWaiting() && !in_array($user->id, $readyParticipants)) {
+    continue;
+}
+
 
                 $hasAnswered = false;
                 $selectedAnswer = null;
@@ -195,7 +197,7 @@ class GuestController extends Controller
                 }
             } catch (\Exception $broadcastException) {
                 // Log broadcast error but don't fail the request
-                \Log::error('Broadcast failed in pollForUpdates: ' . $broadcastException->getMessage());
+                Log::error('Broadcast failed in pollForUpdates: ' . $broadcastException->getMessage());
             }
 
             return response()->json([
@@ -205,7 +207,7 @@ class GuestController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Error in pollForUpdates: ' . $e->getMessage() . ' - ' . $e->getTraceAsString());
+            Log::error('Error in pollForUpdates: ' . $e->getMessage() . ' - ' . $e->getTraceAsString());
             
             // Return a simple error response
             return response()->json([
@@ -225,6 +227,7 @@ class GuestController extends Controller
      */
     public function getData()
     {
+        
         try {
             // Get the current test
             $currentTest = Test::latest()->first();
@@ -294,8 +297,9 @@ class GuestController extends Controller
 
                 // Get user's score
                 $userScore = Score::where('test_id', $currentTest->id)
-                    ->where('user_id', $user->id)
-                    ->value('score') ?? 0;
+                ->where('user_id', $user->id)
+                ->value('total_score') ?? 0;
+
 
                 $participants[] = [
                     'id' => $user->id,
@@ -391,11 +395,17 @@ class GuestController extends Controller
             return response()->json($response);
 
         } catch (\Exception $e) {
-            \Log::error('Error in getData: ' . $e->getMessage() . ' - ' . $e->getTraceAsString());
+            Log::error('Error in getData: ' . $e->getMessage() . ' - ' . $e->getTraceAsString());
             return response()->json([
                 'error' => 'Failed to fetch competition data',
                 'message' => 'Internal server error'
             ], 500);
         }
+
+        Log::info('Scoreboard debug', [
+    'status' => $currentTest->status,
+    'scores' => Score::where('test_id', $currentTest->id)->get()
+]);
+
     }
 }
