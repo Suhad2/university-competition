@@ -29,9 +29,7 @@ Route::get('/quiz', [QuizController::class, 'showQuiz'])->name('quiz');
 // participant
 Route::get('/my-results', [ResultsController::class, 'myResults'])
 ->name('results.my');
-// Real-time scoreboard
-Route::get('/scoreboard', [ScoreboardController::class, 'showScoreboard'])->name('scoreboard');
-Route::get('/scoreboard/live', [ScoreboardController::class, 'getLiveScoreboard'])->name('scoreboard.live');
+
 
 // Admin routes
 Route::middleware(['role:admin'])->group(function () {
@@ -86,3 +84,7 @@ Route::get('/guest/data', [GuestController::class, 'getData'])->name('guest.data
 
 // Guest polling endpoint - broadcasts updates via Pusher
 Route::get('/guest/poll', [GuestController::class, 'pollForUpdates'])->name('guest.poll');
+
+// Real-time scoreboard
+Route::get('/scoreboard', [ScoreboardController::class, 'showScoreboard'])->name('scoreboard');
+Route::get('/scoreboard/live', [ScoreboardController::class, 'getLiveScoreboard'])->name('scoreboard.live');
