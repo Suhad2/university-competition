@@ -46,11 +46,7 @@
                     </div>
                 </form>
             </div>
-            <div class="card-footer text-center">
-                <p class="mb-0">Don't have an account? 
-                    <a href="{{ route('register') }}" class="text-decoration-none">Register here</a>
-                </p>
-            </div>
+         
         </div>
     </div>
 </div>

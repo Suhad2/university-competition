@@ -12,68 +12,68 @@ use App\Http\Controllers\GuestController;
 // Auth routes
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
-Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-Route::post('/register', [AuthController::class, 'register']);
+// Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+// Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Protected routes
 Route::middleware(['auth'])->group(function () {
-// Dashboard/Welcome page
-Route::get('/dashboard', [QuizController::class, 'showDashboard'])->name('dashboard');
-
-// Quiz interface
-Route::get('/quiz', [QuizController::class, 'showQuiz'])->name('quiz');
-Route::post('/quiz/answer', [QuizController::class, 'submitAnswer'])->name('quiz.answer');
-Route::post('/quiz/mark-ready', [QuizController::class, 'markAsReady'])->name('quiz.mark-ready');
-Route::get('/quiz', [QuizController::class, 'showQuiz'])->name('quiz');
-// participant
-Route::get('/my-results', [ResultsController::class, 'myResults'])
-->name('results.my');
-
-
-// Admin routes
-Route::middleware(['role:admin'])->group(function () {
-Route::get('/admin', [AdminController::class, 'index'])->name('admin.dashboard');
-Route::get('/admin/questions', [AdminController::class, 'showQuestions'])->name('admin.questions');
-Route::post('/admin/questions', [AdminController::class, 'storeQuestion'])->name('admin.questions.store');
-Route::get('/admin/questions/create', [AdminController::class, 'createQuestion'])->name('admin.questions.create');
-Route::get('/admin/questions/{question}/edit', [AdminController::class, 'editQuestion'])->name('admin.questions.edit');
-Route::put('/admin/questions/{question}', [AdminController::class, 'updateQuestion'])->name('admin.questions.update');
-Route::delete('/admin/questions/{question}', [AdminController::class, 'deleteQuestion'])->name('admin.questions.delete');
-Route::post('/admin/questions/import', [AdminController::class, 'importQuestions'])->name('admin.questions.import');
-});
-
-// Exam Manager routes
+    // Dashboard/Welcome page
+    Route::get('/dashboard', [QuizController::class, 'showDashboard'])->name('dashboard');
+    
+    // Quiz interface
+    Route::get('/quiz', [QuizController::class, 'showQuiz'])->name('quiz');
+    Route::post('/quiz/answer', [QuizController::class, 'submitAnswer'])->name('quiz.answer');
+    Route::post('/quiz/mark-ready', [QuizController::class, 'markAsReady'])->name('quiz.mark-ready');
+    Route::get('/quiz', [QuizController::class, 'showQuiz'])->name('quiz');
+        // participant
+    Route::get('/my-results', [ResultsController::class, 'myResults'])
+        ->name('results.my');
+  
+    
+    // Admin routes
+    Route::middleware(['role:admin'])->group(function () {
+        Route::get('/admin', [AdminController::class, 'index'])->name('admin.dashboard');
+        Route::get('/admin/questions', [AdminController::class, 'showQuestions'])->name('admin.questions');
+        Route::post('/admin/questions', [AdminController::class, 'storeQuestion'])->name('admin.questions.store');
+        Route::get('/admin/questions/create', [AdminController::class, 'createQuestion'])->name('admin.questions.create');
+        Route::get('/admin/questions/{question}/edit', [AdminController::class, 'editQuestion'])->name('admin.questions.edit');
+        Route::put('/admin/questions/{question}', [AdminController::class, 'updateQuestion'])->name('admin.questions.update');
+        Route::delete('/admin/questions/{question}', [AdminController::class, 'deleteQuestion'])->name('admin.questions.delete');
+        Route::post('/admin/questions/import', [AdminController::class, 'importQuestions'])->name('admin.questions.import');
+    });
+    
+   // Exam Manager routes
 Route::middleware(['role:exam_manager'])->group(function () {
 
-Route::get('/exam-manager', [ExamManagerController::class, 'index'])
-->name('exam-manager.dashboard');
+    Route::get('/exam-manager', [ExamManagerController::class, 'index'])
+        ->name('exam-manager.dashboard');
 
-Route::post('/exam-manager/start-test', [ExamManagerController::class, 'startTest'])
-->name('exam-manager.start-test');
+    Route::post('/exam-manager/start-test', [ExamManagerController::class, 'startTest'])
+        ->name('exam-manager.start-test');
 
-Route::post('/exam-manager/start-first-question', [ExamManagerController::class, 'startFirstQuestion'])
-->name('exam-manager.start-first-question');
+    Route::post('/exam-manager/start-first-question', [ExamManagerController::class, 'startFirstQuestion'])
+        ->name('exam-manager.start-first-question');
 
-Route::post('/exam-manager/next-question', [ExamManagerController::class, 'nextQuestion'])
-->name('exam-manager.next-question');
+    Route::post('/exam-manager/next-question', [ExamManagerController::class, 'nextQuestion'])
+        ->name('exam-manager.next-question');
 
-Route::post('/exam-manager/end-test', [ExamManagerController::class, 'endTest'])
-->name('exam-manager.end-test');
+    Route::post('/exam-manager/end-test', [ExamManagerController::class, 'endTest'])
+        ->name('exam-manager.end-test');
 
-Route::get('/exam-manager/users-status', [ExamManagerController::class, 'showUsersStatus'])
-->name('exam-manager.users-status');
-// Poll for real-time updates
-Route::get('/exam-manager/poll', [ExamManagerController::class, 'pollForUpdates'])
-->name('exam-manager.poll');
-// ✅ Results routes (exam-manager only)
-Route::get('/results/participants', [ResultsController::class, 'participants'])
-->name('results.participants');
+    Route::get('/exam-manager/users-status', [ExamManagerController::class, 'showUsersStatus'])
+        ->name('exam-manager.users-status');
+  // Poll for real-time updates
+    Route::get('/exam-manager/poll', [ExamManagerController::class, 'pollForUpdates'])
+        ->name('exam-manager.poll');
+    // ✅ Results routes (exam-manager only)
+    Route::get('/results/participants', [ResultsController::class, 'participants'])
+        ->name('results.participants');
 
-Route::get('/results/participants/{user}', [ResultsController::class, 'participantDetails'])
-->name('results.participant.details');
+    Route::get('/results/participants/{user}', [ResultsController::class, 'participantDetails'])
+        ->name('results.participant.details');
 });
-
+    
 });
 
 // Guest landing page - main competition display
@@ -85,6 +85,7 @@ Route::get('/guest/data', [GuestController::class, 'getData'])->name('guest.data
 // Guest polling endpoint - broadcasts updates via Pusher
 Route::get('/guest/poll', [GuestController::class, 'pollForUpdates'])->name('guest.poll');
 
-// Real-time scoreboard
-Route::get('/scoreboard', [ScoreboardController::class, 'showScoreboard'])->name('scoreboard');
-Route::get('/scoreboard/live', [ScoreboardController::class, 'getLiveScoreboard'])->name('scoreboard.live');
+  // Real-time scoreboard
+    Route::get('/scoreboard', [ScoreboardController::class, 'showScoreboard'])->name('scoreboard');
+    Route::get('/scoreboard/live', [ScoreboardController::class, 'getLiveScoreboard'])->name('scoreboard.live');
+
