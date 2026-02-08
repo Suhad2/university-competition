@@ -98,11 +98,11 @@
                         <tr class="{{ $loop->first && $currentTest && $currentTest->isEnded() ? 'table-warning' : '' }}">
                             <td>
                                 @if($score->rank == 1)
-                                    <span class="badge bg-warning fs-6">🥇 {{ $score->rank }}</span>
+                                    <span class="badge bg-warning fs-6"> {{ $score->rank }}</span>
                                 @elseif($score->rank == 2)
-                                    <span class="badge bg-secondary fs-6">🥈 {{ $score->rank }}</span>
+                                    <span class="badge bg-secondary fs-6"> {{ $score->rank }}</span>
                                 @elseif($score->rank == 3)
-                                    <span class="badge bg-danger fs-6">🥉 {{ $score->rank }}</span>
+                                    <span class="badge bg-danger fs-6"> {{ $score->rank }}</span>
                                 @else
                                     <span class="badge bg-dark fs-6">{{ $score->rank }}</span>
                                 @endif

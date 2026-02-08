@@ -1026,6 +1026,7 @@ No participants are ready yet. Wait for students to click "I'm Ready".
     <th>Name</th>
     <th>University</th>
     <th>Status</th>
+	<th id="answer-header" style="display: none;">Answer</th>
 </tr>
 </thead>
 
@@ -1062,6 +1063,9 @@ $readyParticipants = $currentTest->getReadyParticipants();
             @endif
         @endif
     </td>
+<td class="answer-cell" style="display: none;">
+					<span class="${answerClass}">${answerDisplay}</span>
+				</td>
 </tr>
 @endif
 @endforeach
@@ -1080,7 +1084,7 @@ $readyParticipants = $currentTest->getReadyParticipants();
 <!-- Right: Question Display -->
 <div class="question-panel" id="question-panel" >
 <div class="question-header">
-	<span><i class="fas fa-question-circle me-2"></i>Current Question</span>
+		<div class="question-number">Question <span id="question-number">1</span></div>
 	<div class="timer-display" id="timer-display">--</div>
 </div>
 <div class="question-body" id="question-body">
@@ -1095,7 +1099,6 @@ $readyParticipants = $currentTest->getReadyParticipants();
 
 	<!-- Question Content (Hidden by default) -->
 	<div id="question-content" style="display: none;">
-		<div class="question-number">Question <span id="question-number">1</span></div>
 		<div class="question-text" id="question-text">Loading question...</div>
 		<div class="options-grid" id="options-grid">
 			<div class="option-item" data-option="A">
@@ -1140,7 +1143,8 @@ const state = {
 	isEnded: false,
 	participants: @json($participantsData ?? []),
 	correctAnswer: null,
-	hasTimeExpired: false
+	hasTimeExpired: false,
+	answersRevealed: false
 };
 
 // LocalStorage key for question persistence
@@ -1156,6 +1160,7 @@ function saveQuestionState() {
 			timeRemaining: state.timeRemaining,
 			correctAnswer: state.correctAnswer,
 			hasTimeExpired: state.hasTimeExpired,
+			answersRevealed: state.answersRevealed,
 			savedAt: Date.now()
 		};
 		localStorage.setItem(QUESTION_STATE_KEY, JSON.stringify(questionState));
@@ -1182,6 +1187,7 @@ function restoreQuestionState() {
 				state.timeLimit = questionState.timeLimit || 35;
 				state.correctAnswer = questionState.correctAnswer;
 				state.hasTimeExpired = questionState.hasTimeExpired || false;
+				state.answersRevealed = questionState.answersRevealed || false;
 
 				// Calculate remaining time based on elapsed time since save
 				const elapsedSinceSave = Math.floor((Date.now() - questionState.savedAt) / 1000);
@@ -1301,6 +1307,9 @@ document.addEventListener('DOMContentLoaded', function() {
 	console.log('Guest Landing Page initialized');
 	console.log('Initial participants:', state.participants.length);
 
+	// Immediately hide answers column - answers should not be visible until time is up
+	hideAnswersColumn();
+
 	// Update table with initial data from Blade template immediately
 	if (state.participants.length > 0) {
 		updateParticipantsTable(state.participants);
@@ -1403,6 +1412,7 @@ function handleTestStarted(data) {
 	state.questionStartTime = null;
 	state.timeRemaining = 0;
 	state.hasTimeExpired = false;
+	state.answersRevealed = false;
 	state.correctAnswer = null;
 
 	// Clear localStorage state
@@ -1415,9 +1425,17 @@ function handleTestStarted(data) {
 	// Clear correct answer highlighting
 	clearCorrectAnswerHighlighting();
 
+	// Hide answers column when new test starts
+	hideAnswersColumn();
+
 	// Reset to waiting state in question panel
 	elements.waitingState.style.display = 'flex';
-	elements.questionContent.style.display = 'none';
+	if (elements.questionContent) {
+		elements.questionContent.style.display = 'none';
+	}
+	if (elements.optionsGrid) {
+		elements.optionsGrid.style.display = 'none';
+	}
 
 	// Update stats if available
 	if (data.test) {
@@ -1425,6 +1443,7 @@ function handleTestStarted(data) {
 		updateStats();
 	}
 }
+
 
 function handleTestUpdated(data) {
 	console.log('📊 TestUpdated event received:', data);
@@ -1490,7 +1509,11 @@ function handleQuestionStarted(data) {
 	state.questionStartTime = data.question_start_time || Math.floor(Date.now() / 1000);
 	state.timeLimit = data.time_limit || 35;
 	state.hasTimeExpired = false;
+	state.answersRevealed = false; // Reset answers revealed state for new question
 	state.correctAnswer = null;
+
+	// Hide answers column for new question - answers should only be visible after time expires
+	hideAnswersColumn();
 
 	console.log('Question started:', question);
 	console.log('Correct answer:', question.correct_answer);
@@ -1517,15 +1540,17 @@ function handleQuestionStarted(data) {
 function handleAnswerReceived(data) {
 	console.log('✅ AnswerReceived event:', data);
 
-	// Update participant's answer status in table
+	// Update participant's answer status in table (but don't reveal yet)
 	if (data.user_id) {
 		const participant = state.participants.find(p => p.id === data.user_id);
 		if (participant) {
 			participant.has_answered = true;
 			participant.selected_answer = data.selected_answer || data.answer;
 			participant.status = 'answered';
+			
+			// Update the table - answer will be hidden until time is up
 			updateParticipantsTable(state.participants);
-			console.log('✅ Participant marked as answered');
+			console.log('✅ Participant answer stored (will reveal when time is up):', data.user_name);
 		}
 	}
 }
@@ -1658,6 +1683,17 @@ function updateParticipantsTable(participants) {
 			statusText = 'Ended';
 		}
 
+			// Determine answer display - only show when time is up
+		let answerDisplay = '-';
+		let answerClass = 'text-muted';
+		
+		if (state.answersRevealed && participant.selected_answer) {
+			answerDisplay = '<strong>' + participant.selected_answer + '</strong>';
+			answerClass = '';
+		} else if (participant.selected_answer) {
+			// Store answer but don't show it yet
+			answerDisplay = '<span class="text-muted">Waiting...</span>';
+		}
 		html += `
 			<tr class="highlight-row">
 				<td>
@@ -1667,8 +1703,8 @@ function updateParticipantsTable(participants) {
 				<td>
 					<span class="status-badge ${statusClass}">${statusText}</span>
 				</td>
-				<td>
-					${participant.selected_answer ? '<strong>' + participant.selected_answer + '</strong>' : '<span class="text-muted">-</span>'}
+				<td class="answer-cell">
+					<span class="${answerClass}">${answerDisplay}</span>
 				</td>
 			</tr>
 		`;
@@ -1752,6 +1788,20 @@ function handleTimeUp() {
 	console.log('Correct answer from state:', state.correctAnswer);
 	console.log('Correct answer from currentQuestion:', state.currentQuestion?.correct_answer);
 
+	
+
+	// Show options when time is up
+	if (elements.optionsGrid) {
+		elements.optionsGrid.style.display = 'flex';
+	}
+	if (document.getElementById('options-placeholder')) {
+		document.getElementById('options-placeholder').style.display = 'none';
+	}
+
+	// Reveal participants' answers in the table
+	showAnswersColumn();
+	console.log('All participant answers revealed');
+
 	// Highlight correct answer
 	if (state.currentQuestion && state.currentQuestion.correct_answer) {
 		state.correctAnswer = state.currentQuestion.correct_answer;
@@ -1786,6 +1836,52 @@ function clearCorrectAnswerHighlighting() {
 	});
 }
 
+
+// Show/hide answers column in participants table
+function showAnswersColumn() {
+	state.answersRevealed = true;
+	
+	// Show answer header
+	const answerHeader = document.getElementById('answer-header');
+	if (answerHeader) {
+		answerHeader.style.display = '';
+	}
+	
+	// Show all answer cells
+	const answerCells = document.querySelectorAll('.answer-cell');
+	answerCells.forEach(cell => {
+		cell.style.display = '';
+	});
+	
+	// Refresh table to show actual answers
+	if (state.participants && Array.isArray(state.participants)) {
+		updateParticipantsTable(state.participants);
+	}
+	
+	saveQuestionState();
+	console.log('Answers column revealed');
+}
+
+function hideAnswersColumn() {
+	state.answersRevealed = false;
+	
+	// Hide answer header
+	const answerHeader = document.getElementById('answer-header');
+	if (answerHeader) {
+		answerHeader.style.display = 'none';
+	}
+	
+	// Hide all answer cells
+	const answerCells = document.querySelectorAll('.answer-cell');
+	answerCells.forEach(cell => {
+		cell.style.display = 'none';
+		cell.querySelector('span').textContent = '-';
+		cell.querySelector('span').className = 'text-muted';
+	});
+	
+	saveQuestionState();
+	console.log('Answers column hidden');
+}
 // Update stats display
 function updateStats() {
 	if (state.currentTest) {
