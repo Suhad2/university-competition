@@ -253,6 +253,41 @@ body::before {
 	box-shadow: 0 8px 20px rgba(13, 84, 82, 0.4);
 }
 
+/* Counter Badge Styles */
+.counter-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 45px;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.counter-badge i {
+    font-size: 0.75rem;
+}
+
+.counter-badge.increment {
+    animation: counterPulse 0.5s ease;
+    transform: scale(1.1);
+}
+
+@keyframes counterPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); box-shadow: 0 0 20px rgba(16, 185, 129, 0.6); }
+    100% { transform: scale(1); }
+}
+
 /* Section 3: Main Content */
 .main-content {
 	flex: 1;
@@ -835,14 +870,11 @@ body::before {
 }
 
 .card-header {
-	background: linear-gradient(135deg, #116967 0%, #0d5452 50%, #094442 100%);
-	color: white;
-	padding: 1rem 1.25rem;
-	border: none;
+
 }
 
 .card-header h5 {
-	color: white;
+	color: #116967;
 	margin: 0;
 	font-weight: 600;
 	display: flex;
@@ -956,31 +988,43 @@ body::before {
     <div class="row g-3">
 
         <div class="col-md-4 col-sm-6">
-            <div class="stat-card primary">
+            <div class="stat-card primary" id="card-alzahraa">
                 <div class="logo-wrapper">
                     <img src="{{ asset('images/4.jpg') }}" alt="Alzahraa University" class="stat-logo">
                 </div>
-                <div class="stat-label">Alzahraa Univ.</div>
+                <div class="counter-badge" id="counter-alzahraa">
+                    <i class="fas fa-check"></i>
+                    <span class="counter-value">0</span>
+                </div>
+				<h3>Alzahraa Univ.</h3>
             </div>
         </div>
 
         <div class="col-md-4 col-sm-6">
-            <div class="stat-card warning">
+            <div class="stat-card warning" id="card-kufa">
                 <div class="logo-wrapper">
                     <img src="{{ asset('images/2.jpg') }}" alt="University of Kufa" class="stat-logo">
                 </div>
                 <span id="current-question" style="display: none;">-</span>
-                <div class="stat-label">University of Kufa</div>
+                <div class="counter-badge" id="counter-kufa">
+                    <i class="fas fa-check"></i>
+                    <span class="counter-value">0</span>
+                </div>
+				<h3>University of Kufa</h3>
             </div>
         </div>
 
         <div class="col-md-4 col-sm-6">
-            <div class="stat-card info">
+            <div class="stat-card info" id="card-baghdad">
                 <div class="logo-wrapper">
-                    <img src="{{ asset('images/1.jpg') }}" alt="University of Babylon" class="stat-logo">
+                    <img src="{{ asset('images/1.jpg') }}" alt="University of Baghdad" class="stat-logo">
                 </div>
                 <span id="time-remaining" style="display: none;">--</span>
-                <div class="stat-label">Univ. of Baghdad</div>
+                <div class="counter-badge" id="counter-baghdad">
+                    <i class="fas fa-check"></i>
+                    <span class="counter-value">0</span>
+                </div>
+				<h3>Univ. of Baghdad</h3>
             </div>
         </div>
 
@@ -1015,8 +1059,8 @@ Participants Status
 <div class="card-body">
 @if ($stats['ready_participants'] == 0)
 <div class="alert alert-warning">
-<i class="fas fa-exclamation-triangle"></i>
-No participants are ready yet. Wait for students to click "I'm Ready".
+	<i class="fas fa-exclamation-triangle"></i>
+	No participants are ready yet. Wait for students to click "I'm Ready".
 </div>
 @else
 <div class="table-responsive">
@@ -1144,7 +1188,20 @@ const state = {
 	participants: @json($participantsData ?? []),
 	correctAnswer: null,
 	hasTimeExpired: false,
-	answersRevealed: false
+	answersRevealed: false,
+	// Counter state for correct answers by university
+	universityCounters: {
+		'Al-Zahraa University for Women': 0,
+		'Alzahraa University': 0,
+		'Alzahraa Univ.': 0,
+		'Al-Zahraa University for Women ': 0,
+		'University of Kufa': 0,
+		'University of Baghdad': 0,
+		'Univ. of Baghdad': 0,
+		'University of Babylon': 0
+	},
+	// Track which questions have been processed for scoring
+	processedQuestions: new Set()
 };
 
 // LocalStorage key for question persistence
@@ -1161,6 +1218,8 @@ function saveQuestionState() {
 			correctAnswer: state.correctAnswer,
 			hasTimeExpired: state.hasTimeExpired,
 			answersRevealed: state.answersRevealed,
+			universityCounters: state.universityCounters,
+			processedQuestions: Array.from(state.processedQuestions),
 			savedAt: Date.now()
 		};
 		localStorage.setItem(QUESTION_STATE_KEY, JSON.stringify(questionState));
@@ -1188,6 +1247,17 @@ function restoreQuestionState() {
 				state.correctAnswer = questionState.correctAnswer;
 				state.hasTimeExpired = questionState.hasTimeExpired || false;
 				state.answersRevealed = questionState.answersRevealed || false;
+
+				// Restore university counters
+				if (questionState.universityCounters) {
+					state.universityCounters = questionState.universityCounters;
+					updateAllCounters();
+				}
+
+				// Restore processed questions
+				if (questionState.processedQuestions) {
+					state.processedQuestions = new Set(questionState.processedQuestions);
+				}
 
 				// Calculate remaining time based on elapsed time since save
 				const elapsedSinceSave = Math.floor((Date.now() - questionState.savedAt) / 1000);
@@ -1414,6 +1484,20 @@ function handleTestStarted(data) {
 	state.hasTimeExpired = false;
 	state.answersRevealed = false;
 	state.correctAnswer = null;
+
+	// Reset university counters for new test
+	state.universityCounters = {
+		'Al-Zahraa University for Women': 0,
+		'Alzahraa University': 0,
+		'Alzahraa Univ.': 0,
+		'Al-Zahraa University for Women ': 0,
+		'University of Kufa': 0,
+		'University of Baghdad': 0,
+		'Univ. of Baghdad': 0,
+		'University of Babylon': 0
+	};
+	state.processedQuestions = new Set();
+	updateAllCounters();
 
 	// Clear localStorage state
 	clearQuestionState();
@@ -1787,7 +1871,6 @@ function handleTimeUp() {
 	console.log('Full state.currentQuestion:', state.currentQuestion);
 	console.log('Correct answer from state:', state.correctAnswer);
 	console.log('Correct answer from currentQuestion:', state.currentQuestion?.correct_answer);
-
 	
 
 	// Show options when time is up
@@ -1807,6 +1890,9 @@ function handleTimeUp() {
 		state.correctAnswer = state.currentQuestion.correct_answer;
 		console.log('Highlighting correct answer:', state.currentQuestion.correct_answer);
 		highlightCorrectAnswer(state.currentQuestion.correct_answer);
+		
+		// Calculate and update university scores after highlighting correct answer
+		calculateUniversityScores();
 	} else {
 		console.warn('❌ No correct_answer found in question data!');
 		console.warn('Available fields:', Object.keys(state.currentQuestion || {}));
@@ -1834,6 +1920,128 @@ function clearCorrectAnswerHighlighting() {
 	options.forEach(option => {
 		option.classList.remove('correct', 'incorrect');
 	});
+}
+
+// University Counter Functions
+function calculateUniversityScores() {
+	const questionId = state.currentQuestion?.id || state.currentQuestion?.question_number;
+	
+	// Don't process the same question twice
+	if (state.processedQuestions.has(questionId)) {
+		console.log('Question already processed, skipping score calculation');
+		return;
+	}
+	
+	state.processedQuestions.add(questionId);
+	
+	// Check if we have participants and correct answer
+	if (!state.correctAnswer || !state.participants || !Array.isArray(state.participants)) {
+		console.log('No participants or correct answer to calculate scores');
+		return;
+	}
+	
+	console.log('Calculating university scores for question:', questionId);
+	console.log('Correct answer:', state.correctAnswer);
+	console.log('Total participants:', state.participants.length);
+	
+	// Count correct answers by university
+	state.participants.forEach(participant => {
+		// Only count if participant answered and their answer is correct
+		if (participant.has_answered && participant.selected_answer) {
+			// Trim university name and handle variations
+			let university = (participant.university || 'Unknown').trim();
+			const selectedAnswer = participant.selected_answer.toUpperCase();
+			const correctAnswer = state.correctAnswer.toUpperCase();
+			
+			console.log(`Participant: ${participant.name}, University: "${university}", Answer: ${selectedAnswer}, Correct: ${correctAnswer}`);
+			
+			if (selectedAnswer === correctAnswer) {
+				// Increment counter for this university
+				if (state.universityCounters[university] !== undefined) {
+					state.universityCounters[university]++;
+					console.log(`✅ Correct answer from ${university}! Count: ${state.universityCounters[university]}`);
+				} else {
+					// Try to find matching university in our counter map
+					let found = false;
+					for (const key in state.universityCounters) {
+						const normalizedKey = key.trim();
+						if (university === normalizedKey || university.includes(normalizedKey) || normalizedKey.includes(university)) {
+							state.universityCounters[key]++;
+							state.universityCounters[normalizedKey] = (state.universityCounters[normalizedKey] || 0) + 1;
+							console.log(`✅ Correct answer from "${university}" (matched with "${normalizedKey}")! Count: ${state.universityCounters[normalizedKey]}`);
+							found = true;
+							break;
+						}
+					}
+					if (!found) {
+						console.log(`University "${university}" not found in counter map`);
+					}
+				}
+			}
+		}
+	});
+	
+	// Update all counter displays
+	updateAllCounters();
+	
+	// Save state
+	saveQuestionState();
+}
+
+function updateAllCounters() {
+	console.log('Updating all counters:', state.universityCounters);
+	
+	// Update Alzahraa counter - aggregate all Al-Zahraa variations
+	const zahraCounter = document.getElementById('counter-alzahraa');
+	if (zahraCounter) {
+		const valueSpan = zahraCounter.querySelector('.counter-value');
+		if (valueSpan) {
+			// Sum all Al-Zahraa variations
+			const total = (state.universityCounters['Al-Zahraa University for Women'] || 0) + 
+			              (state.universityCounters['Al-Zahraa University for Women '] || 0) +
+			              (state.universityCounters['Alzahraa University'] || 0) + 
+			              (state.universityCounters['Alzahraa Univ.'] || 0);
+			valueSpan.textContent = total;
+			
+			// Add increment animation
+			zahraCounter.classList.remove('increment');
+			void zahraCounter.offsetWidth; // Trigger reflow
+			zahraCounter.classList.add('increment');
+		}
+	}
+	
+	// Update Kufa counter
+	const kufaCounter = document.getElementById('counter-kufa');
+	if (kufaCounter) {
+		const valueSpan = kufaCounter.querySelector('.counter-value');
+		if (valueSpan) {
+			const total = (state.universityCounters['University of Kufa'] || 0);
+			valueSpan.textContent = total;
+			
+			// Add increment animation
+			kufaCounter.classList.remove('increment');
+			void kufaCounter.offsetWidth; // Trigger reflow
+			kufaCounter.classList.add('increment');
+		}
+	}
+	
+	// Update Baghdad counter - aggregate all Baghdad variations
+	const baghdadCounter = document.getElementById('counter-baghdad');
+	if (baghdadCounter) {
+		const valueSpan = baghdadCounter.querySelector('.counter-value');
+		if (valueSpan) {
+			// Sum all Baghdad variations
+			const total = (state.universityCounters['University of Baghdad'] || 0) + 
+			              (state.universityCounters['Univ. of Baghdad'] || 0) +
+			              (state.universityCounters['University of Babylon'] || 0);
+			valueSpan.textContent = total;
+			
+			// Add increment animation
+			baghdadCounter.classList.remove('increment');
+			void baghdadCounter.offsetWidth; // Trigger reflow
+			baghdadCounter.classList.add('increment');
+		}
+	}
 }
 
 

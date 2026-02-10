@@ -2,17 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Test;
-use App\Models\Question;
 use App\Models\User;
-use App\Models\Answer;
 use App\Models\Score;
-use App\Events\TestStarted;
-use App\Events\QuestionStarted;
+use App\Models\Answer;
+use App\Models\Question;
 use App\Events\TestEnded;
+use App\Events\TestStarted;
 use App\Events\TestUpdated;
+use Illuminate\Http\Request;
+use App\Events\QuestionStarted;
 use App\Events\ParticipantReady;
+use Illuminate\Support\Facades\Log;
 
 /**
  * ExamManagerController - Handles exam management operations
@@ -265,15 +266,67 @@ class ExamManagerController extends Controller
         return response()->json($userStatus);
     }
 
-    /**
-     * Get the next unused question for the test.
+        /**
+     * Get the next unused question for the test with balanced category distribution.
+     * Ensures each category has an equal chance by prioritizing categories with fewer used questions.
      */
     private function getNextQuestion(Test $test): ?Question
     {
+        // Get all question IDs that have already been used in this test
         $usedQuestionIds = Answer::where('test_id', $test->id)
             ->pluck('question_id')
             ->toArray();
 
+        // Count used questions per category
+        $usedQuestionCounts = Question::whereIn('id', $usedQuestionIds)
+            ->groupBy('category')
+            ->selectRaw('category, count(*) as count')
+            ->pluck('count', 'category')
+            ->toArray();
+
+        // Get all available categories with their question counts
+        $allCategories = Question::whereNotIn('id', $usedQuestionIds)
+            ->groupBy('category')
+            ->selectRaw('category, count(*) as count')
+            ->pluck('count', 'category')
+            ->toArray();
+
+        if (empty($allCategories)) {
+            return null;
+        }
+
+        // Find the category with the fewest used questions (or 0 if new category)
+        // This ensures balanced distribution across all categories
+        $prioritizedCategory = null;
+        $minUsedCount = PHP_INT_MAX;
+
+        foreach (array_keys($allCategories) as $category) {
+            $usedCount = $usedQuestionCounts[$category] ?? 0;
+            if ($usedCount < $minUsedCount) {
+                $minUsedCount = $usedCount;
+                $prioritizedCategory = $category;
+            }
+        }
+
+        // If a category is found, select a random question from it
+        if ($prioritizedCategory) {
+            $question = Question::whereNotIn('id', $usedQuestionIds)
+                ->where('category', $prioritizedCategory)
+                ->inRandomOrder()
+                ->first();
+
+            // Fallback: if no question found in prioritized category (shouldn't happen),
+            // get any random unused question
+            if (!$question) {
+                $question = Question::whereNotIn('id', $usedQuestionIds)
+                    ->inRandomOrder()
+                    ->first();
+            }
+
+            return $question;
+        }
+
+        // Fallback: return any random unused question
         return Question::whereNotIn('id', $usedQuestionIds)->inRandomOrder()->first();
     }
 
@@ -450,13 +503,13 @@ class ExamManagerController extends Controller
                     broadcast(new TestUpdated($currentTest, $participants, $stats));
                 }
             } catch (\Exception $e) {
-                \Log::error('Broadcast failed in pollForUpdates: ' . $e->getMessage());
+                Log::error('Broadcast failed in pollForUpdates: ' . $e->getMessage());
             }
             
             return response()->json($response);
             
         } catch (\Exception $e) {
-            \Log::error('Error in pollForUpdates: ' . $e->getMessage() . ' - ' . $e->getTraceAsString());
+            Log::error('Error in pollForUpdates: ' . $e->getMessage() . ' - ' . $e->getTraceAsString());
             return response()->json([
                 'error' => 'Failed to fetch updates',
                 'message' => 'Internal server error'

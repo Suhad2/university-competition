@@ -36,7 +36,6 @@ class DatabaseSeeder extends Seeder
         // Create Sample University Users
         $universities = [
             'Al-Zahraa University for Women ',
-            'University of Kerbala',
             'University of Baghdad',
             'University of Kufa',
             
